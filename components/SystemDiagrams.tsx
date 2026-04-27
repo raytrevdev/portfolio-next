@@ -197,7 +197,7 @@ export default function SystemDiagrams() {
     >
       <div className="shell">
         <div className="section-meta" aria-hidden="true">
-          <span className="num">03</span>
+          <span className="num">04</span>
           <span>System Thinking</span>
           <span className="bar" />
           <span>diagrams draw on scroll</span>

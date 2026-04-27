@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 
 const NAV_LINKS = [
   { href: '#capabilities', label: 'Capabilities', num: '01' },
-  { href: '#systems',      label: 'Systems',      num: '02' },
+  { href: '#pipeline',     label: 'Pipeline',     num: '02' },
+  { href: '#systems',      label: 'Systems',      num: '03' },
   { href: '#ownership',    label: 'Ownership',    num: '03' },
   { href: '#projects',     label: 'Projects',     num: '04' },
   { href: '#reflection',   label: 'Reflection',   num: '05' },
@@ -40,6 +41,7 @@ export default function TopNav() {
 
         <nav className="right topnav-desktop" aria-label="Primary">
           <a href="#capabilities">Capabilities</a>
+          <a href="#pipeline">Pipeline</a>
           <a href="#systems">Systems</a>
           <a href="#ownership">Ownership</a>
           <a href="#projects">Projects</a>

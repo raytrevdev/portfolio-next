@@ -1,6 +1,7 @@
 import TopNav from '@/components/TopNav';
 import Hero from '@/components/Hero';
 import CapabilityLayers from '@/components/CapabilityLayers';
+import TechPipeline from '@/components/TechPipeline';
 import SystemDiagrams from '@/components/SystemDiagrams';
 import OwnershipTimeline from '@/components/OwnershipTimeline';
 import SelectedProjects from '@/components/SelectedProjects';
@@ -20,6 +21,7 @@ export default function HomePage() {
       <main id="main-content-wrap">
         <Hero />
         <CapabilityLayers />
+        <TechPipeline />
         <SystemDiagrams />
         <OwnershipTimeline />
         <SelectedProjects />
