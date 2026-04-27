@@ -1185,7 +1185,7 @@ body {
 /* ---------- Footer ---------- */
 
 .foot {
-  padding: 48px 0 64px;
+  padding: 48px 24px 64px;
   border-top: 1px solid var(--line-soft);
   font-family: var(--mono);
   font-size: 12px;
@@ -1194,6 +1194,7 @@ body {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 16px;
+  margin-top: 42px;
 }
 .foot a { color: var(--fg-1); text-decoration: none; }
 .foot a:hover { color: var(--accent); }
@@ -1373,6 +1374,192 @@ body {
   color: var(--accent);
 }
 .resume-cta .arrow { color: var(--accent); }
+
+/* ---------- Loading screen ---------- */
+
+.loader {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Split curtain halves */
+.loader-half {
+  position: absolute;
+  left: 0; right: 0;
+  height: 50%;
+  background: var(--bg-0);
+  transition: transform 0.85s cubic-bezier(0.76, 0, 0.24, 1);
+}
+.loader-half-top {
+  top: 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+.loader-half-bot { bottom: 0; }
+.loader-exit .loader-half-top { transform: translateY(-100%); }
+.loader-exit .loader-half-bot { transform: translateY(100%); }
+
+/* Scan line sweeping top → bottom */
+.loader-scan {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent) 50%, transparent);
+  animation: loaderScan 1s cubic-bezier(0.4, 0, 0.6, 1) 0.05s forwards;
+  opacity: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+@keyframes loaderScan {
+  0%   { top: -2px; opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+/* Content block */
+.loader-content {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  text-align: center;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.loader-exit .loader-content {
+  opacity: 0;
+  transform: scale(0.97);
+}
+
+/* Eyebrow */
+.loader-eyebrow {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--accent);
+  opacity: 0;
+  animation: loaderFadeUp 0.5s ease 0.15s forwards;
+}
+
+/* Big name with glitch */
+.loader-name {
+  font-family: var(--sans);
+  font-size: clamp(48px, 10vw, 100px);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  color: var(--fg-0);
+  line-height: 1;
+  position: relative;
+  opacity: 0;
+  transform: translateY(24px);
+  animation: loaderNameIn 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) 0.2s forwards;
+  font-variant-numeric: tabular-nums;
+}
+.loader-name::before,
+.loader-name::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;
+  pointer-events: none;
+}
+.loader-name::before {
+  color: var(--accent);
+  clip-path: polygon(0 15%, 100% 15%, 100% 38%, 0 38%);
+  animation: loaderGlitch1 2.8s ease-in-out 0.9s infinite;
+}
+.loader-name::after {
+  color: oklch(0.74 0.18 340);
+  clip-path: polygon(0 62%, 100% 62%, 100% 82%, 0 82%);
+  animation: loaderGlitch2 2.8s ease-in-out 1.2s infinite;
+}
+@keyframes loaderGlitch1 {
+  0%, 82%, 100% { transform: translate(0);        opacity: 0; }
+  83%            { transform: translate(-5px, 0);  opacity: 1; }
+  85%            { transform: translate(5px, 0);   opacity: 1; }
+  87%            { transform: translate(-2px, 0);  opacity: 1; }
+  89%            { transform: translate(0);        opacity: 0; }
+}
+@keyframes loaderGlitch2 {
+  0%, 85%, 100% { transform: translate(0);       opacity: 0; }
+  86%            { transform: translate(5px, 0);  opacity: 1; }
+  88%            { transform: translate(-5px, 0); opacity: 1; }
+  90%            { transform: translate(3px, 0);  opacity: 1; }
+  92%            { transform: translate(0);       opacity: 0; }
+}
+
+/* Rule line expands outward */
+.loader-rule {
+  width: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--line), transparent);
+  animation: loaderRuleExpand 0.7s ease 0.65s forwards;
+}
+@keyframes loaderRuleExpand {
+  to { width: min(420px, 82vw); }
+}
+
+/* HUD corner brackets */
+.loader-hud {
+  position: relative;
+  padding: 12px 20px;
+}
+.hud-c {
+  position: absolute;
+  width: 14px; height: 14px;
+  border-color: var(--accent-line);
+  border-style: solid;
+  opacity: 0;
+  animation: loaderFadeIn2 0.35s ease 0.75s forwards;
+}
+.hud-tl { top: 0;    left: 0;   border-width: 1px 0 0 1px; }
+.hud-tr { top: 0;    right: 0;  border-width: 1px 1px 0 0; }
+.hud-bl { bottom: 0; left: 0;   border-width: 0 0 1px 1px; }
+.hud-br { bottom: 0; right: 0;  border-width: 0 1px 1px 0; }
+@keyframes loaderFadeIn2 { to { opacity: 1; } }
+
+/* Second scramble — role tagline */
+.loader-role {
+  font-family: var(--mono);
+  font-size: clamp(11px, 1.8vw, 15px);
+  letter-spacing: 0.2em;
+  color: var(--accent);
+  opacity: 0;
+  animation: loaderFadeUp 0.4s ease 0.8s forwards;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Terminal status line */
+.loader-status {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  color: var(--fg-3);
+  opacity: 0;
+  animation: loaderFadeUp 0.4s ease 1.15s forwards;
+}
+.loader-prompt { color: var(--accent); }
+.loader-cursor {
+  color: var(--accent);
+  animation: loaderBlink 0.75s step-end infinite;
+}
+@keyframes loaderBlink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+@keyframes loaderFadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes loaderNameIn {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
 /* ---------- Back to top ---------- */
 
@@ -1595,7 +1782,7 @@ body {
   .contact-form { padding: 22px; }
   .principle { padding: 24px; }
 
-  .foot { flex-direction: column; gap: 8px; padding: 36px 24px 48px; }
+  .foot { flex-direction: column; gap: 8px; padding: 36px 24px 48px;}
 
   .scroll-cue { display: none; }
 }
