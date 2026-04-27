@@ -58,7 +58,7 @@ html, body {
     scroll-behavior: auto !important;
   }
   .hero-grid { animation: none !important; }
-  .hero-canvas { display: none !important; }
+  .hero-glow { animation: none !important; }
   .hero-headline .word {
     opacity: 1 !important;
     transform: none !important;
@@ -512,6 +512,7 @@ body {
   padding: 120px 32px 80px;
   overflow: hidden;
   border-top: 0;
+  background: var(--bg-0);
 }
 
 .hero-grid {
@@ -533,20 +534,28 @@ body {
   100% { background-position: 64px 64px; }
 }
 
-.hero-canvas {
+.hero-glow {
   position: absolute;
   inset: 0;
   z-index: 1;
   pointer-events: none;
-  background: var(--bg-0);
+  background:
+    radial-gradient(ellipse 70% 45% at 50% 100%, oklch(0.82 0.14 220 / 0.18), transparent 100%),
+    radial-gradient(ellipse 40% 25% at 50% 100%, oklch(0.82 0.14 220 / 0.24), transparent 70%),
+    radial-gradient(ellipse 120% 35% at 50% 115%, oklch(0.82 0.14 220 / 0.11), transparent 80%);
+  transform-origin: 50% 100%;
+  animation: glowRise 5s ease-in-out infinite;
+}
+@keyframes glowRise {
+  0%, 100% { opacity: 0.60; transform: scaleY(0.88); }
+  50%       { opacity: 1;    transform: scaleY(1.06); }
 }
 
 .hero-vignette {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse 60% 40% at 50% 110%, var(--accent-faint), transparent 70%),
-    linear-gradient(180deg, transparent 60%, var(--bg-0) 100%);
+    linear-gradient(180deg, var(--bg-0) 0%, transparent 12%, transparent 72%, var(--bg-0) 100%);
   pointer-events: none;
   z-index: 2;
 }
