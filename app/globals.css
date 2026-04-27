@@ -517,6 +517,7 @@ body {
 .hero-grid {
   position: absolute;
   inset: 0;
+  z-index: 2;
   background-image:
     linear-gradient(var(--line-soft) 1px, transparent 1px),
     linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
@@ -537,6 +538,7 @@ body {
   inset: 0;
   z-index: 1;
   pointer-events: none;
+  background: var(--bg-0);
 }
 
 .hero-vignette {
