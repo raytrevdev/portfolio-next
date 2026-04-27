@@ -6,6 +6,7 @@ import OwnershipTimeline from '@/components/OwnershipTimeline';
 import SelectedProjects from '@/components/SelectedProjects';
 import Reflection from '@/components/Reflection';
 import Contact from '@/components/Contact';
+import BackToTop from '@/components/BackToTop';
 
 export default function HomePage() {
   return (
@@ -23,6 +24,7 @@ export default function HomePage() {
         <Reflection />
         <Contact />
       </main>
+      <BackToTop />
     </>
   );
 }
