@@ -7,10 +7,12 @@ import SelectedProjects from '@/components/SelectedProjects';
 import Reflection from '@/components/Reflection';
 import Contact from '@/components/Contact';
 import BackToTop from '@/components/BackToTop';
+import LoadingScreen from '@/components/LoadingScreen';
 
 export default function HomePage() {
   return (
     <>
+      <LoadingScreen />
       <a href="#main-content" className="skip-link">
         Skip to main content
       </a>
