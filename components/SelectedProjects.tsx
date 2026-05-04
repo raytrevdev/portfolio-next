@@ -14,7 +14,7 @@ interface Project {
 const PROJECTS: Project[] = [
   {
     tag: '// SIDE PROJECT · 2024',
-    title: 'Government Portal Prototype',
+    title: 'Headless CMS Portal Prototype',
     summary:
       'A content-driven public portal: server-rendered, CDN-cached, editor-friendly. Built to prove that headless CMS architecture can match the SEO and scale of monolithic platforms.',
     blocks: [
