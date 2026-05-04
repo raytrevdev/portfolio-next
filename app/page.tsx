@@ -9,11 +9,13 @@ import Reflection from '@/components/Reflection';
 import Contact from '@/components/Contact';
 import BackToTop from '@/components/BackToTop';
 import LoadingScreen from '@/components/LoadingScreen';
+import RevampPreviewPopup from '@/components/RevampPreviewPopup';
 
 export default function HomePage() {
   return (
     <>
       <LoadingScreen />
+      <RevampPreviewPopup />
       <a href="#main-content" className="skip-link">
         Skip to main content
       </a>
