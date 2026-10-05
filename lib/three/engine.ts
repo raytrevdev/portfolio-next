@@ -539,7 +539,7 @@ const PLANE_LIST = [['airliner', 'Airliner', 'Twin-engine widebody'], ['jumbo', 
 { const dots = document.getElementById('hDots'); PLANE_LIST.forEach(([id, name]) => { const d = document.createElement('button'); d.type = 'button'; d.setAttribute('aria-label', name); d.onclick = () => setPlane(id); dots.appendChild(d); }); }
 const cyclePlane = dir => { const i = PLANE_LIST.findIndex(p => p[0] === plane.userData.type); setPlane(PLANE_LIST[(i + dir + PLANE_LIST.length) % PLANE_LIST.length][0]); };
 document.querySelectorAll('.h-car [data-dir]').forEach(b => b.addEventListener('click', () => cyclePlane(+b.dataset.dir), { signal: _sig }));
-{ let saved = DEFAULT_PLANE; try { saved = localStorage.getItem('rt-plane') || saved; } catch (e) {} setPlane(saved, false); }
+{ let saved = RM ? 'airliner' : DEFAULT_PLANE; try { saved = localStorage.getItem('rt-plane') || saved; } catch (e) {} setPlane(saved, false); }
 addEventListener('keydown', e => { if (!document.getElementById('hangar').classList.contains('show')) return; if (e.key === 'ArrowRight') cyclePlane(1); if (e.key === 'ArrowLeft') cyclePlane(-1); }, { signal: _sig });
 
 document.querySelectorAll('[data-plane]').forEach(b => b.addEventListener('click', () => setPlane(b.dataset.plane), { signal: _sig }));
@@ -891,8 +891,22 @@ const htrack = document.getElementById('htrack'), hcards = [...htrack.children],
 const localP = (el, r) => { const span = el.offsetHeight - innerHeight; return span > 0 ? clamp(-r.top/span) : clamp(-r.top/innerHeight); };
 // reduced motion: one fixed camera per chapter (no sweeps, no chase cam), fog wash and clouds kept gentle
 const RM_CAM = { 5: [55, 46, 30, 1.2, 0, -3, 0, .1], 6: [40, 24, 15, 4.8, 2.2, 0, 0, .16] };
+// Reduced motion + Starship: the single wide RM_CAM shot can't hold a rocket that climbs to orbit, so use still
+// shots instead — pad, then fixed frames stepped every RM_BAND units of altitude, then both pads for the landings.
+// The camera holds still inside a shot and cuts (frame() snaps, no pan) when the stages move into the next one.
+let rmShot = '';
+const RM_BAND = 8, RM_XZ = 3;
+function rmStarCam(p) {
+  const u = sm(.17, .92, p), c = rkC(u);
+  if (c <= 0) { rmShot = 'pad'; return [40, 14, 7, RK_A.x, 1.3, RK_A.z, 0, 0]; }
+  boosterAt(c, _cb); rkPos(c, _cs).addScaledVector(_Y, shipOff(c));
+  // landing shot once both stages are low enough to sit inside it
+  if (c > .6 && Math.max(_cb.y, _cs.y) - RK_A.y < 2.4) { rmShot = 'land'; return [80, 16, 10.5, 1.6, 1.0, -1.6, 0, -.06]; }
+  const q = (v, k) => Math.round(v/k)*k, fx = q((_cb.x + _cs.x)/2, RM_XZ), fy = q((_cb.y + _cs.y)/2, RM_BAND), fz = q((_cb.z + _cs.z)/2, RM_XZ), r = _cb.distanceTo(_cs) > 1.6 ? 28 : 20;
+  rmShot = `${fx}|${fy}|${fz}|${r}`; return [55, 10, r, fx, fy, fz, 0, 0];
+}
 function SS(s, p, t) { const o = S(s, p, t); if (!RM) return o;
-  o.cam = RM_CAM[s] || S(s, .5, 0).cam; o.fog = 0; if (s === 6) o.explode = Math.min(o.explode, .6); return o; }
+  o.cam = s === 5 && isStar() ? rmStarCam(p) : RM_CAM[s] || S(s, .5, 0).cam; o.fog = 0; if (s === 6) o.explode = Math.min(o.explode, .6); return o; }
 function countUp(b) {
   if (RM) { b.textContent = (+b.dataset.to).toFixed(+(b.dataset.dp || 0)); return; }
   const to = +b.dataset.to, dp = +(b.dataset.dp || 0), t0 = performance.now();
@@ -928,7 +942,7 @@ function roadAt(f) { f = clamp(f, 0, NODES.length - 1);
   else { const i = Math.min(3, Math.floor(f)), u = f - i, c = i < 3 ? i + u : 3 + 2*u; klCurve.getPoint(c/5, _p); }
   return [_p.x, _p.z, B + .014]; }
 const tgt = new THREE.Vector3(), dayC = new THREE.Color(0xfff4e6), duskC = new THREE.Color(0xffc79a), nightC = new THREE.Color(0x8fa6ff);
-let cur = null, last = performance.now();
+let cur = null, last = performance.now(), lastRmShot = '';
 const vhProbe = document.createElement('div'); vhProbe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:100lvh;visibility:hidden;pointer-events:none'; document.body.appendChild(vhProbe);
 let VW = 0, VH = 0;
 function resize() { const w = innerWidth, h = MOB ? Math.max(innerHeight, vhProbe.offsetHeight) : innerHeight;
@@ -946,6 +960,7 @@ function frame(now) { if (_dead) return;
     if (avg > 1/42 && perfStep < 2) { perfStep++; DPR = Math.max(1, DPR - .5); renderer.setPixelRatio(DPR); resize();
       if (perfStep === 2) { sun.shadow.mapSize.set(1024, 1024); sun.shadow.map?.dispose(); sun.shadow.map = null; } } } }
   const goal = target(t); cur = cur ? mix(cur, goal, 1 - Math.exp(-dt*(RM ? 9 : 4.5))) : goal;
+  if (RM && rmShot !== lastRmShot) { lastRmShot = rmShot; cur.cam = goal.cam.slice(); }
   const [az, el, r0, tx, ty, tz, sx, sy] = cur.cam, mob = VW < 860, r = mob ? r0*cur.mz*(VW < VH ? 1.25 + .25*clamp((VH/VW - 1.2)/.8) : 1.1) : r0, A = az*Math.PI/180, E = el*Math.PI/180;
   tgt.set(tx, ty, tz);
   if (!cwSec.classList.contains('in')) { UO.taz = UO.tel = 0; UO.tz = 1; }
