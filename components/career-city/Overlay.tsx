@@ -26,8 +26,11 @@ export default function Overlay() {
           <button type="button" data-dir="1" className="nx" aria-label="Next aircraft">›</button>
         </div>
         <div className="h-dots" id="hDots"></div>
+        <button type="button" className="h-launch" id="hLaunch">Auto-launch<span aria-hidden="true">▶</span></button>
         <div className="h-hint"><i></i>Or keep scrolling to take off</div>
       </div>
+
+      <button type="button" className="auto-stop" id="autoStop" aria-label="Stop auto-launch"><i></i>Auto-launch · Stop</button>
 
       <header className="nav">
         <a className="pill brand" href="#start"><i></i>Raymond Ting</a>
