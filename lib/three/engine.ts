@@ -237,8 +237,6 @@ function launchPad(tag, x, z, tx, tz) {
   box(arms, `pad_${tag}_carriage`, .08, .12, .28, M.towerS, .06, -.04, 0);
   return { g, inner, piv, mats, pool };
 }
-// how much each pad is lit by its own stage's plume (0 = idle, 1 = engines firing right above it)
-const PADLIT = [0, 0], PADGLOW = [0, 0]; // PADGLOW = displayed value: quick rise, short afterglow when engines cut
 const PADS = [launchPad('kul', -.5, -.25, -.68, .06), launchPad('sin', 3.15, -2.35, null, null)];
 let padK = 0;
 const smoke = new THREE.Group(); smoke.name = 'pad_smoke'; scene.add(smoke);
@@ -375,8 +373,8 @@ function rocketPose(u, now, hg) {
     VFX.cat.forEach((s, i) => { const a = i/6*Math.PI*2, rr = .12 + .3*k3; s.visible = k3 > 0 && k3 < 1; s.position.set(PAD2.x + Math.cos(a)*rr, PAD2.y + .88 + .1*k3, PAD2.z + Math.sin(a)*rr); s.scale.setScalar(.1 + .35*k3); s.material.opacity = .6*sm(0, .12, k3)*(1 - k3); }); }
   { const e13 = c > .63 ? sm(5.4, 4.8, altB)*(1 - sm(1.8, 1.2, altB)) : 0, xz = c <= C_SEP ? 1.15 : c < .63 ? .85 : .5 + .5*e13; st.bFlame.scale.x *= xz; st.bFlame.scale.z *= xz; if (c > .63) st.bFlame.scale.y *= .75 + .35*e13; }
   trMesh.visible = trGlow.visible = false;
-  rocketLight.position.copy(bT >= sT ? st.bG.position : st.sG.position); rocketLight.intensity = Math.max(bT, sT)*7;
-  PADLIT[0] = Math.min(1, bT)*sm(2.6, .35, st.bG.position.y - RK_A.y); PADLIT[1] = Math.min(1, sT)*sm(2.6, .15, st.sG.position.y - RK_A.y);
+  rocketLight.position.copy(bT >= sT ? st.bG.position : st.sG.position);
+  rocketLight.intensity = Math.max(bT, sT)*7*sm(.6, 3, rocketLight.position.y - RK_A.y); // no pad flood-light near the ground
   { const k = (c - C_SEP + .006)/.06, on = k > 0 && k < 1;
     if (!SEPFX && on) { SEPFX = { f: new THREE.Sprite(new THREE.SpriteMaterial({ map: softTex, color: 0xe2f1ff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })),
       r: new THREE.Mesh(new THREE.RingGeometry(.7, 1, 64), new THREE.MeshBasicMaterial({ color: 0xeaf4ff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })) }; scene.add(SEPFX.f, SEPFX.r); }
@@ -449,9 +447,9 @@ const PLANES = {
     M.nozzle = M.nozzle || std('raptor_nozzle', 0x3a3b3f, .45, .7);
     M.frost = M.frost || std('booster_frost', 0xffffff, 1, 0, { transparent: true, opacity: 0, depthWrite: false, emissive: 0xdfe8f2, emissiveIntensity: .35,
       map: (() => { const c = document.createElement('canvas'); c.width = 128; c.height = 512; const g = c.getContext('2d'), rnd = (a, b) => a + Math.random()*(b - a);
-        // y runs top (CH4 tank) → bottom (LOX tank); bare band at the common dome and above the methane tank
-        const tanks = [[40, 220], [262, 500]];
-        tanks.forEach(([y0, y1]) => { const gr = g.createLinearGradient(0, y0, 0, y1); gr.addColorStop(0, 'rgba(255,255,255,.55)'); gr.addColorStop(.12, 'rgba(255,255,255,.92)'); gr.addColorStop(.88, 'rgba(255,255,255,.95)'); gr.addColorStop(1, 'rgba(255,255,255,.6)'); g.fillStyle = gr; g.fillRect(0, y0, 128, y1 - y0);
+        // one continuous frost coat over the whole booster body
+        const tanks = [[0, 512]];
+        tanks.forEach(([y0, y1]) => { const gr = g.createLinearGradient(0, y0, 0, y1); gr.addColorStop(0, 'rgba(255,255,255,.9)'); gr.addColorStop(1, 'rgba(255,255,255,.95)'); g.fillStyle = gr; g.fillRect(0, y0, 128, y1 - y0);
           for (let i = 0; i < 70; i++) { g.fillStyle = `rgba(214,224,234,${rnd(.25, .6)})`; g.fillRect(0, rnd(y0, y1), 128, rnd(1, 4)); }   // ice rings
           for (let i = 0; i < 90; i++) { g.fillStyle = `rgba(255,255,255,${rnd(.4, .9)})`; g.beginPath(); g.ellipse(rnd(0, 128), rnd(y0, y1), rnd(3, 10), rnd(2, 6), 0, 0, Math.PI*2); g.fill(); } }); // patches
         const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; t.repeat.set(3, 1); return t; })() });
@@ -983,7 +981,7 @@ function frame(now) { if (_dead) return;
     const rwK = 1 - sm(0, .42, padK), riseK = sm(.38, 1, padK);
     RUNWAYS.forEach((rw, i) => { rw.visible = rwK > .003; rw.scale.set(.4 + .6*rwK, 1, Math.max(.001, rwK*rwK*(3 - 2*rwK))); rw.position.y = B - .012*(1 - rwK); });
     PADS.forEach(pd => { pd.g.visible = riseK > .003; pd.inner.scale.set(.6 + .4*riseK, Math.max(.001, backOut(riseK)), .6 + .4*riseK); });
-    if (ud.star) rocketPose(u, now, hg); else { rocketLight.intensity = 0; PADLIT[0] = PADLIT[1] = 0; smoke.visible = smoke2.visible = false; if (SEPFX) SEPFX.f.visible = SEPFX.r.visible = false; LC.visible = false; trMesh.visible = trGlow.visible = false; if (RE) RE.wake.visible = RE.halo.visible = false; if (VFX) VFX.vent.concat(VFX.cat).forEach(s => s.visible = false); }
+    if (ud.star) rocketPose(u, now, hg); else { rocketLight.intensity = 0; smoke.visible = smoke2.visible = false; if (SEPFX) SEPFX.f.visible = SEPFX.r.visible = false; LC.visible = false; trMesh.visible = trGlow.visible = false; if (RE) RE.wake.visible = RE.halo.visible = false; if (VFX) VFX.vent.concat(VFX.cat).forEach(s => s.visible = false); }
     const sp = ud.star ? cur.space : 0, cS = ud.star ? rkC(u) : 0; stars.visible = sp > .01; starMat.opacity = sp;
     orbit.visible = !!ud.star && cS > .1 && cS < .9; // above the frame until the climb brings them in
     if (orbit.visible) { const d0 = camera.position.distanceTo(tgt), th = Math.tan(camera.fov*Math.PI/360);
@@ -994,10 +992,7 @@ function frame(now) { if (_dead) return;
     hangarEl.style.opacity = clamp(hg*1.8).toFixed(3); hangarEl.style.pointerEvents = hg > .5 ? 'auto' : 'none';
     hangarEl.classList.toggle('show', hg > .45); passEl.classList.toggle('hold', hg > .3); passEl.classList.toggle('done', u > .985); passEl.classList.toggle('mini', !!ud.star && u > .03 && u <= .985); }
   { const nl = sm(.5, 1, nt); M.glow.emissiveIntensity = .3 + 2.8*nl; M.mbs.emissiveIntensity = .45*nl; M.vortex.emissiveIntensity = .35 + 1.6*nl; }
-  { const pl = .92 + .08*Math.sin(t*2.6);
-    PADS.forEach((pd, i) => { PADGLOW[i] += (PADLIT[i] - PADGLOW[i])*(1 - Math.exp(-dt*(PADLIT[i] > PADGLOW[i] ? 12 : 2.2))); const L = PADGLOW[i], m = pd.mats;
-      m.ring.emissiveIntensity = (.5 + .5*nt)*pl + .5*L; m.inner.emissiveIntensity = .05 + .12*nt + .75*L;
-      m.pool.opacity = (.05 + .12*nt)*pl + .5*L; pd.pool.scale.setScalar(1 + .5*L); }); }
+  PADS.forEach(pd => { const m = pd.mats; m.ring.emissiveIntensity = .5 + .5*nt; m.inner.emissiveIntensity = .05 + .12*nt; m.pool.opacity = .1*nt; }); // static pad lights
   azureCloud.scale.setScalar(Math.max(.001, cur.azure)); azureCloud.visible = cur.azure > .02;
   M.puff.opacity = cur.cloud*.92; clouds.visible = cur.cloud > .01;
   clouds.children.forEach((g, i) => g.position.x += Math.sin(t*.2 + i)*.0008);
