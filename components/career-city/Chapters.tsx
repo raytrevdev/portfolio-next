@@ -89,6 +89,8 @@ export default function Chapters() {
                 <div style={{ textAlign: 'right' }}><span>To</span><b>SIN</b><em>Singapore</em></div>
               </div>
               <button type="button" className="chg" id="chgBtn">Change aircraft</button>
+              <button type="button" className="auto-stop" id="autoStop"><i></i>Stop auto-launch</button>
+              <div className="auto-done" aria-live="polite">Landed in Singapore · scroll to continue <span aria-hidden="true">↓</span></div>
               <div className="meta3">
                 <div><span>Leaving as</span>Software Developer (Intern)<br /><small>Arvato Systems Malaysia</small></div>
                 <div><span>Arriving as</span>Software Developer<br /><small>WhooshPro Pte Ltd</small></div>

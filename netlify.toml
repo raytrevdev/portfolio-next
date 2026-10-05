@@ -4,9 +4,3 @@
 
 [build.environment]
   NODE_VERSION = "24"
-
-# Next's static OG image is emitted without an extension; serve it as a PNG.
-[[headers]]
-  for = "/opengraph-image"
-  [headers.values]
-    Content-Type = "image/png"

@@ -960,7 +960,11 @@ const UO = { az: 0, el: 0, z: 1, taz: 0, tel: 0, tz: 1 }, cwSec = document.getEl
 // then hands scrolling back. The Stop pill, or any wheel / touch / key / click, stops it immediately.
 // Two legs: a quick ~2.4s lead-in from the picker to ignition (AUTO_IGN), then the flight itself at a watchable pace.
 const AUTO_IGN = .22, AUTO_END = .88, AUTO_LEAD_MS = 2400, AUTO_MS = 34000; let autoFl = null;
-function autoStop() { if (!autoFl) return; autoFl = null; document.documentElement.classList.remove('auto-flight'); }
+function autoStop(done = false) { if (!autoFl) return; autoFl = null; document.documentElement.classList.remove('auto-flight');
+  if (done) { autoDoneY = scrollY; document.documentElement.classList.add('auto-landed'); _st(autoDoneHide, 9000); } }
+// "Landed · scroll to continue" hint after a completed auto-launch; fades once the visitor scrolls on (or after 9s)
+let autoDoneY = -1;
+function autoDoneHide() { autoDoneY = -1; document.documentElement.classList.remove('auto-landed'); }
 function autoStart() {
   if (!isStar()) return;
   const top = scrollY + cwSec.getBoundingClientRect().top, span = cwSec.offsetHeight - innerHeight, from = Math.max(scrollY, top + .03*span), to = top + AUTO_END*span;
@@ -969,8 +973,8 @@ function autoStart() {
   autoFl = { from, ign, to, t0: performance.now(), dA, dB, dur: dA + dB }; document.documentElement.classList.add('auto-flight');
 }
 document.getElementById('hLaunch').addEventListener('click', autoStart, { signal: _sig });
-document.getElementById('autoStop').addEventListener('click', autoStop, { signal: _sig });
-['wheel', 'touchstart', 'keydown'].forEach(ev => addEventListener(ev, autoStop, { signal: _sig, passive: true }));
+document.getElementById('autoStop').addEventListener('click', () => autoStop(), { signal: _sig });
+['wheel', 'touchstart', 'keydown'].forEach(ev => addEventListener(ev, () => autoStop(), { signal: _sig, passive: true }));
 addEventListener('mousedown', e => { if (!e.target.closest('#hLaunch')) autoStop(); }, { signal: _sig });
 let perfN = 0, perfSum = 0, perfStep = 0;
 function frame(now) { if (_dead) return;
@@ -980,7 +984,8 @@ function frame(now) { if (_dead) return;
       if (perfStep === 2) { sun.shadow.mapSize.set(1024, 1024); sun.shadow.map?.dispose(); sun.shadow.map = null; } } } }
   if (autoFl) { const A = autoFl, el = now - A.t0;
     if (el < A.dA) { const k = el/A.dA; scrollTo(0, A.from + (A.ign - A.from)*k*k*(3 - 2*k)); }
-    else { const k = clamp((el - A.dA)/A.dB), e = .85*k + .15*k*k*(3 - 2*k); scrollTo(0, A.ign + (A.to - A.ign)*e); if (k >= 1) autoStop(); } }
+    else { const k = clamp((el - A.dA)/A.dB), e = .85*k + .15*k*k*(3 - 2*k); scrollTo(0, A.ign + (A.to - A.ign)*e); if (k >= 1) autoStop(true); } }
+  if (autoDoneY >= 0 && Math.abs(scrollY - autoDoneY) > 80) autoDoneHide();
   const goal = target(t); cur = cur ? mix(cur, goal, 1 - Math.exp(-dt*(RM ? 9 : 4.5))) : goal;
   if (RM && rmShot !== lastRmShot) { lastRmShot = rmShot; cur.cam = goal.cam.slice(); }
   const [az, el, r0, tx, ty, tz, sx, sy] = cur.cam, mob = VW < 860, r = mob ? r0*cur.mz*(VW < VH ? 1.25 + .25*clamp((VH/VW - 1.2)/.8) : 1.1) : r0, A = az*Math.PI/180, E = el*Math.PI/180;
@@ -1057,7 +1062,7 @@ return () => {
   tl.querySelectorAll('a').forEach(a => a.remove());
   document.getElementById('hDots')?.replaceChildren();
   vhProbe.remove();
-  document.documentElement.style.removeProperty('--a'); document.documentElement.classList.remove('city-ready', 'auto-flight');
+  document.documentElement.style.removeProperty('--a'); document.documentElement.classList.remove('city-ready', 'auto-flight', 'auto-landed');
   // free GPU memory
   const freeMat = mt => { for (const k in mt) { const v = mt[k]; if (v && v.isTexture) v.dispose(); } mt.dispose(); };
   const free = o => { o.geometry?.dispose(); (Array.isArray(o.material) ? o.material : o.material ? [o.material] : []).forEach(freeMat); };

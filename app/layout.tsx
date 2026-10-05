@@ -40,7 +40,7 @@ export const metadata: Metadata = {
     'CI/CD',
     'three.js',
   ],
-  icons: { icon: '/favicon.svg' },
+  icons: { icon: '/favicon.svg', apple: '/apple-icon.png' },
   openGraph: {
     type: 'profile',
     locale: 'en_SG',
