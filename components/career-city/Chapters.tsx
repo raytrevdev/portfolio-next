@@ -78,7 +78,7 @@ export default function Chapters() {
         </div>
       </section>
 
-      <section className="ch" id="causeway" data-t="The flight" data-y="12/2022" style={{ height: '860vh' }}>
+      <section className="ch" id="causeway" data-t="The flight" data-y="12/2022" style={{ height: '3100vh' }}>
         <div className="pin" style={{ justifyContent: 'flex-start', paddingTop: 78 }}>
           <div className="pass">
             <div className="pass-l">
