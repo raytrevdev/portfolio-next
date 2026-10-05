@@ -1,12 +1,30 @@
 import type { Metadata, Viewport } from 'next';
+import { Bricolage_Grotesque, DM_Mono } from 'next/font/google';
 import Script from 'next/script';
 import './globals.css';
 
+const disp = Bricolage_Grotesque({
+  subsets: ['latin'],
+  axes: ['opsz'],
+  variable: '--font-disp',
+  display: 'swap',
+});
+const mono = DM_Mono({
+  subsets: ['latin'],
+  weight: ['400', '500'],
+  variable: '--font-mono',
+  display: 'swap',
+});
+
+const SITE = 'https://www.rdevting.com';
+const DESC =
+  'Senior software developer in Singapore — a scroll-built 3D clay city of a career shipping CMS-driven web platforms end-to-end across React/Next.js, .NET, Linux infrastructure, and CI/CD.';
+
 export const metadata: Metadata = {
-  metadataBase: new URL('https://raymondting.dev'),
-  title: 'Raymond Ting — From Idea to Production',
-  description:
-    'Senior software developer in Singapore — shipping CMS-driven web platforms end-to-end across React/Next.js, .NET, Linux infrastructure, and CI/CD.',
+  metadataBase: new URL(SITE),
+  title: 'Raymond Ting — Built, plot by plot',
+  description: DESC,
+  alternates: { canonical: '/' },
   authors: [{ name: 'Ting Tze Jian (Raymond)' }],
   keywords: [
     'senior software developer',
@@ -20,40 +38,29 @@ export const metadata: Metadata = {
     'Azure',
     'AWS',
     'CI/CD',
-    'Docker',
+    'three.js',
   ],
   icons: { icon: '/favicon.svg' },
   openGraph: {
     type: 'profile',
     locale: 'en_SG',
-    title: 'Raymond Ting — From Idea to Production',
-    description:
-      'Senior software developer specialising in shipping production systems across frontend, backend, infrastructure, and deployment.',
-    siteName: 'raymond.ting',
-    images: [
-      {
-        url: '/og-card.svg',
-        width: 1200,
-        height: 630,
-        alt: 'From Idea to Production — Raymond Ting, senior software developer.',
-      },
-    ],
+    url: '/',
+    title: 'Raymond Ting — Built, plot by plot',
+    description: 'A career built as a miniature 3D city, from Kuala Lumpur to Singapore.',
+    siteName: 'Raymond Ting',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Raymond Ting — From Idea to Production',
-    description:
-      'Senior software developer · ships systems end-to-end · React/Next.js · .NET · Linux · CI/CD.',
-    images: ['/og-card.svg'],
+    title: 'Raymond Ting — Built, plot by plot',
+    description: 'Senior software developer · ships systems end-to-end · React/Next.js · .NET · Linux · CI/CD.',
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: '#1a1d22',
-  colorScheme: 'dark',
+  themeColor: '#ece9e3',
+  colorScheme: 'light',
   width: 'device-width',
   initialScale: 1,
-  viewportFit: 'cover',
 };
 
 const personLd = {
@@ -62,14 +69,10 @@ const personLd = {
   name: 'Ting Tze Jian',
   alternateName: 'Raymond Ting',
   jobTitle: 'Senior Software Developer',
+  url: SITE,
   worksFor: { '@type': 'Organization', name: 'WhooshPro Pte Ltd' },
-  address: {
-    '@type': 'PostalAddress',
-    addressLocality: 'Yishun',
-    addressCountry: 'SG',
-  },
+  address: { '@type': 'PostalAddress', addressCountry: 'SG' },
   email: 'mailto:raymondting521@gmail.com',
-  telephone: '+65-9112-5475',
   knowsAbout: [
     'Full-stack development',
     'React',
@@ -87,14 +90,8 @@ const personLd = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${disp.variable} ${mono.variable}`}>
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400;500&display=swap"
-          rel="stylesheet"
-        />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(personLd) }}

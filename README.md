@@ -1,6 +1,6 @@
-# Raymond Ting — Engineering Portfolio
+# Raymond Ting — Career City
 
-Personal portfolio of Ting Tze Jian (Raymond), Senior Software Developer based in Singapore. Built to demonstrate full-stack engineering capability — from frontend interfaces to infrastructure, deployment pipelines, and end-to-end system ownership.
+Portfolio of Ting Tze Jian (Raymond), Senior Software Developer based in Singapore. The résumé is a miniature 3D clay city: as you scroll, a glowing commit puck travels the road and each career step grows as a building — Kuala Lumpur → a flight across the Straits of Johor (airliner, jet, UFO… or a full Starship launch and catch) → Singapore, ending at night with fireworks.
 
 **Live site → [rdevting.com](https://www.rdevting.com/)**
 
@@ -12,35 +12,26 @@ Personal portfolio of Ting Tze Jian (Raymond), Senior Software Developer based i
 |---|---|
 | Framework | Next.js 16 (App Router, Static Export) |
 | Language | TypeScript 5 |
+| 3D | three.js 0.184 — imperative, one scroll-driven engine (no react-three-fiber) |
 | Styling | Pure CSS — OKLCH color system, custom properties |
-| Fonts | Inter Tight · JetBrains Mono (Google Fonts) |
-| Animations | Canvas API · SVG · CSS transitions · IntersectionObserver |
-| Hosting | Netlify (CDN, global edge) |
+| Fonts | Bricolage Grotesque · DM Mono (self-hosted via `next/font`) |
+| Hosting | Netlify (CDN, global edge) · domain via GoDaddy |
 
-No UI libraries. No CSS frameworks. No external dependencies beyond Next.js and React.
+Scroll is the only timeline: every animation is a pure function of scroll progress. Respects `prefers-reduced-motion`, has dedicated mobile camera framing, and auto-scales pixel ratio / shadow resolution when frame time drops.
 
 ---
 
 ## CI/CD Pipeline
 
-Every push to `main` triggers the following automated pipeline:
-
 ```
-git push → GitHub Actions
+git push → GitHub Actions (push + PR to main)
               ├── TypeScript type check (tsc --noEmit)
-              ├── ESLint lint check
               └── Production build (next build)
-                        ↓ all pass
-                   Netlify picks up the commit
-                        ↓
-                   Runs npm run build
-                        ↓
-                   Publishes out/ to global CDN
-                        ↓
-                   Live at rdevting.com
-```
 
-If any step in GitHub Actions fails, the commit is flagged and Netlify does not deploy — the live site stays on the last good version.
+git push → Netlify (independent of Actions)
+              ├── PRs   → deploy preview URL
+              └── main  → npm run build → publish out/ → rdevting.com
+```
 
 ---
 
@@ -50,7 +41,7 @@ If any step in GitHub Actions fails, the commit is flagged and Netlify does not 
 npm install
 npm run dev       # http://localhost:3000
 npm run build     # static export → out/
-npm run lint      # ESLint
+npm run lint      # TypeScript type check (tsc --noEmit)
 ```
 
 ---
@@ -58,21 +49,19 @@ npm run lint      # ESLint
 ## Project Structure
 
 ```
-next-app/
-├── app/
-│   ├── layout.tsx            # Root layout, fonts, SEO metadata
-│   ├── page.tsx              # Single-page composition
-│   └── globals.css           # All styles
-├── components/
-│   ├── TopNav.tsx            # Fixed nav with mobile drawer
-│   ├── Hero.tsx              # Canvas animation + headline reveal
-│   ├── CapabilityLayers.tsx  # Auto-cycling skill tabs / mobile slider
-│   ├── SystemDiagrams.tsx    # SVG architecture diagrams
-│   ├── OwnershipTimeline.tsx # Scroll-tracked delivery timeline
-│   ├── SelectedProjects.tsx  # Featured project case studies
-│   ├── Reflection.tsx        # Operating principles
-│   └── Contact.tsx           # Contact form + resume download
-├── public/                   # Static assets (favicon, OG card, resume PDF)
-├── .github/workflows/        # GitHub Actions CI workflow
-└── netlify.toml              # Netlify build + publish config
+app/
+├── layout.tsx              # Fonts, SEO metadata, JSON-LD, Google Analytics
+├── page.tsx                # Overlay + chapters + engine mount
+├── globals.css             # All styles (ported from the design prototype)
+├── opengraph-image.tsx     # Social preview, rendered to PNG at build time
+├── sitemap.ts · robots.ts  # Static sitemap.xml / robots.txt
+components/career-city/
+├── Overlay.tsx             # Sky, WebGL canvas, fog, vehicle picker, nav, timeline
+├── Chapters.tsx            # The 9 scroll chapters (all résumé copy lives here)
+└── CityEngine.tsx          # Client-only: lazy-loads and mounts/disposes the engine
+lib/three/
+└── engine.ts               # The city, flight, Starship sequence, story state machine
+public/                     # favicon, resume.pdf
 ```
+
+`lib/three/engine.ts` is a 1:1 port of the design prototype's script, kept intact for motion parity. Only the mount/unmount lifecycle, the label font and the removed GLB export differ.
