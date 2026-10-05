@@ -30,8 +30,6 @@ export default function Overlay() {
         <div className="h-hint"><i></i>Or keep scrolling to take off</div>
       </div>
 
-      <button type="button" className="auto-stop" id="autoStop" aria-label="Stop auto-launch"><i></i>Auto-launch · Stop</button>
-
       <header className="nav">
         <a className="pill brand" href="#start"><i></i>Raymond Ting</a>
         <span className="sp"></span>
