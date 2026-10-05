@@ -6,7 +6,7 @@ const pa = (c: string) => ({ '--pa': c }) as CSSProperties;
 export default function Chapters() {
   return (
     <main>
-      <section className="ch" id="start" data-t="Start" data-y="Profile" style={{ height: '170vh' }}>
+      <section className="ch in" id="start" data-t="Start" data-y="Profile" style={{ height: '170vh' }}>
         <div className="pin">
           <div className="plac">
             <div className="row"><b>Site plan</b><span>Kuala Lumpur → Singapore</span></div>
@@ -15,9 +15,9 @@ export default function Chapters() {
             <p>Software developer with hands-on experience delivering and leading CMS-driven web projects across WordPress and Sitefinity environments, including headless CMS architectures.</p>
             <p className="hero-p2" style={{ marginTop: 8 }}>Brings a balanced mix of engineering execution, infrastructure awareness, and project ownership.</p>
             <div className="trio">
-              <div><b className="count" data-to="3">0</b><span>Roles</span></div>
-              <div><b className="count" data-to="2">0</b><span>Countries</span></div>
-              <div><b className="count" data-to="2">0</b><span>Side projects</span></div>
+              <div><b className="count" data-to="3">3</b><span>Roles</span></div>
+              <div><b className="count" data-to="2">2</b><span>Countries</span></div>
+              <div><b className="count" data-to="2">2</b><span>Side projects</span></div>
             </div>
             <div className="cue"><i></i>SCROLL TO BUILD</div>
           </div>
@@ -108,7 +108,7 @@ export default function Chapters() {
           <div className="plac" style={pa('oklch(.58 .19 25)')}>
             <div className="row"><b>Plot 05 · Singapore</b><span>01/2023 – present · Singapore</span></div>
             <h2>Software Developer <span style={{ color: 'var(--mut)', fontWeight: 400 }}>→</span> Senior Software Developer</h2>
-            <div className="org">WhooshPro Pte Ltd · promoted</div>
+            <div className="org">WhooshPro Pte Ltd</div>
             <ul className="tags"><li>WordPress</li><li>Sitefinity</li><li>React / Next.js</li><li>.NET · EF</li><li>RedHat · Debian · IIS</li><li>Azure · AWS</li></ul>
           </div>
           <div className="hz">

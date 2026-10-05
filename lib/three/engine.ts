@@ -533,6 +533,7 @@ function setPlane(type, pop = true) {
   const i = PLANE_LIST.findIndex(p => p[0] === type), nm = document.getElementById('hName');
   nm.innerHTML = `<b>${PLANE_LIST[i][1]}</b><span>${PLANE_LIST[i][2]}</span>`; nm.classList.remove('flip'); void nm.offsetWidth; if (pop) nm.classList.add('flip');
   [...document.getElementById('hDots').children].forEach((d, k) => d.classList.toggle('on', k === i));
+  document.getElementById('hangar').classList.toggle('star', type === 'starship');
 }
 const PLANE_LIST = [['airliner', 'Airliner', 'Twin-engine widebody'], ['jumbo', 'Jumbo', 'Four engines, upper deck'], ['jet', 'Private jet', 'Business class only'],
   ['prop', 'Propeller', 'Low and slow'], ['paper', 'Paper plane', 'Folded at the desk'], ['ufo', 'UFO', 'Not from around here'], ['starship', 'Starship', 'Pad to pad, via the edge of space']];
@@ -943,6 +944,8 @@ function roadAt(f) { f = clamp(f, 0, NODES.length - 1);
   return [_p.x, _p.z, B + .014]; }
 const tgt = new THREE.Vector3(), dayC = new THREE.Color(0xfff4e6), duskC = new THREE.Color(0xffc79a), nightC = new THREE.Color(0x8fa6ff);
 let cur = null, last = performance.now(), lastRmShot = '';
+// entrance: after the first rendered frame the canvas fades in (CSS) while the board rises into place; skipped if already scrolled
+let entT0 = -1;
 const vhProbe = document.createElement('div'); vhProbe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:100lvh;visibility:hidden;pointer-events:none'; document.body.appendChild(vhProbe);
 let VW = 0, VH = 0;
 function resize() { const w = innerWidth, h = MOB ? Math.max(innerHeight, vhProbe.offsetHeight) : innerHeight;
@@ -953,12 +956,31 @@ addEventListener('resize', resize, { signal: _sig }); resize();
 const hangarEl = document.getElementById('hangar'), passEl = document.querySelector('.pass');
 document.getElementById('chgBtn').addEventListener('click', () => { const sec = document.getElementById('causeway'), top = scrollY + sec.getBoundingClientRect().top; scrollTo({ top: top + .08*(sec.offsetHeight - innerHeight), behavior: RM ? 'auto' : 'smooth' }); }, { signal: _sig });
 const UO = { az: 0, el: 0, z: 1, taz: 0, tel: 0, tz: 1 }, cwSec = document.getElementById('causeway'), cwPin = cwSec.querySelector('.pin');
+// Auto-launch (Starship): scrolls the flight for the visitor from the pad to touchdown (AUTO_END of the section),
+// then hands scrolling back. The Stop pill, or any wheel / touch / key / click, stops it immediately.
+// Two legs: a quick ~2.4s lead-in from the picker to ignition (AUTO_IGN), then the flight itself at a watchable pace.
+const AUTO_IGN = .22, AUTO_END = .88, AUTO_LEAD_MS = 2400, AUTO_MS = 34000; let autoFl = null;
+function autoStop() { if (!autoFl) return; autoFl = null; document.documentElement.classList.remove('auto-flight'); }
+function autoStart() {
+  if (!isStar()) return;
+  const top = scrollY + cwSec.getBoundingClientRect().top, span = cwSec.offsetHeight - innerHeight, from = Math.max(scrollY, top + .03*span), to = top + AUTO_END*span;
+  if (to - from < 10) return;
+  const ign = Math.max(from, top + AUTO_IGN*span), dA = AUTO_LEAD_MS*(ign - from)/((AUTO_IGN - .03)*span), dB = AUTO_MS*(to - ign)/((AUTO_END - AUTO_IGN)*span);
+  autoFl = { from, ign, to, t0: performance.now(), dA, dB, dur: dA + dB }; document.documentElement.classList.add('auto-flight');
+}
+document.getElementById('hLaunch').addEventListener('click', autoStart, { signal: _sig });
+document.getElementById('autoStop').addEventListener('click', autoStop, { signal: _sig });
+['wheel', 'touchstart', 'keydown'].forEach(ev => addEventListener(ev, autoStop, { signal: _sig, passive: true }));
+addEventListener('mousedown', e => { if (!e.target.closest('#hLaunch')) autoStop(); }, { signal: _sig });
 let perfN = 0, perfSum = 0, perfStep = 0;
 function frame(now) { if (_dead) return;
   const raw = (now - last)/1000, dt = Math.min(.05, raw); last = now; const t = RM ? 0 : now/1000;
   if (raw < .25) { perfSum += raw; if (++perfN === 60) { const avg = perfSum/60; perfN = perfSum = 0;
     if (avg > 1/42 && perfStep < 2) { perfStep++; DPR = Math.max(1, DPR - .5); renderer.setPixelRatio(DPR); resize();
       if (perfStep === 2) { sun.shadow.mapSize.set(1024, 1024); sun.shadow.map?.dispose(); sun.shadow.map = null; } } } }
+  if (autoFl) { const A = autoFl, el = now - A.t0;
+    if (el < A.dA) { const k = el/A.dA; scrollTo(0, A.from + (A.ign - A.from)*k*k*(3 - 2*k)); }
+    else { const k = clamp((el - A.dA)/A.dB), e = .85*k + .15*k*k*(3 - 2*k); scrollTo(0, A.ign + (A.to - A.ign)*e); if (k >= 1) autoStop(); } }
   const goal = target(t); cur = cur ? mix(cur, goal, 1 - Math.exp(-dt*(RM ? 9 : 4.5))) : goal;
   if (RM && rmShot !== lastRmShot) { lastRmShot = rmShot; cur.cam = goal.cam.slice(); }
   const [az, el, r0, tx, ty, tz, sx, sy] = cur.cam, mob = VW < 860, r = mob ? r0*cur.mz*(VW < VH ? 1.25 + .25*clamp((VH/VW - 1.2)/.8) : 1.1) : r0, A = az*Math.PI/180, E = el*Math.PI/180;
@@ -1014,6 +1036,9 @@ function frame(now) { if (_dead) return;
   document.getElementById('fog').style.opacity = cur.fog.toFixed(3);
   puck.position.set(px, py + .05, pz); puck.visible = cur.puck > .05; puck.scale.setScalar(Math.max(.01, cur.puck));
   const hc = oklch(.7, .18, cur.hue); M.puck.emissive.copy(hc); puckLight.color.copy(hc); puckLight.position.set(px, py + .6, pz); puckLight.intensity = cur.puck*(3 + 6*nt);
+  if (entT0 < 0) { entT0 = now; document.documentElement.classList.add('city-ready'); if (scrollY < 40) document.querySelectorAll('#start .count').forEach(countUp); }
+  { const ek = RM || scrollY > 40 ? 1 : clamp((now - entT0)/900); if (ek >= 1) entT0 = Math.min(entT0, now - 900);
+    scene.position.y = -.45*(1 - ek)**3; }
   updateAmbient(dt, cur); updateFireworks(dt); renderer.render(scene, camera); _raf = requestAnimationFrame(frame);
 }
 _raf = requestAnimationFrame(frame);
@@ -1032,7 +1057,7 @@ return () => {
   tl.querySelectorAll('a').forEach(a => a.remove());
   document.getElementById('hDots')?.replaceChildren();
   vhProbe.remove();
-  document.documentElement.style.removeProperty('--a');
+  document.documentElement.style.removeProperty('--a'); document.documentElement.classList.remove('city-ready', 'auto-flight');
   // free GPU memory
   const freeMat = mt => { for (const k in mt) { const v = mt[k]; if (v && v.isTexture) v.dispose(); } mt.dispose(); };
   const free = o => { o.geometry?.dispose(); (Array.isArray(o.material) ? o.material : o.material ? [o.material] : []).forEach(freeMat); };

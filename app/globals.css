@@ -175,3 +175,17 @@ ul.b li::before{content:"";position:absolute;left:0;top:8px;width:6px;height:6px
 }
 /* GLB download removed: let the odd last contact button span the mobile 2×2 grid */
 @media (max-width:860px){#contact .btns .btn:last-child:nth-child(odd){grid-column:1/-1}}
+/* Entrance: the city fades in once its first frame has rendered (engine adds html.city-ready) */
+#gl{opacity:0;transition:opacity .7s cubic-bezier(.2,.7,.2,1)}
+html.city-ready #gl{opacity:1}
+@media (prefers-reduced-motion: reduce){#gl{transition-duration:.4s}}
+/* Auto-launch (Starship only): flies the visitor to touchdown; Stop pill (or any input) hands control back */
+.h-launch{display:none;align-items:center;gap:8px;padding:10px 18px;border:0;border-radius:999px;background:var(--ink);color:#fff;font:inherit;font-size:14px;font-weight:500;cursor:pointer;box-shadow:0 12px 26px -14px rgba(20,20,30,.5);transition:background .2s}
+.h-launch:hover{background:var(--a)}.h-launch span{font-size:10px}
+.hangar.star .h-launch{display:inline-flex}
+.hangar.show>*:nth-child(6){transition-delay:.32s}
+.auto-stop{position:fixed;left:50%;bottom:84px;z-index:11;display:inline-flex;align-items:center;gap:10px;padding:9px 16px;border:0;border-radius:999px;background:rgba(29,28,26,.88);color:#fff;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;opacity:0;pointer-events:none;transform:translate(-50%,12px);transition:opacity .3s,transform .3s}
+.auto-stop i{width:8px;height:8px;border-radius:1px;background:#fff}
+.auto-stop:hover{background:var(--a)}
+html.auto-flight .auto-stop{opacity:1;pointer-events:auto;transform:translate(-50%,0)}
+@media (max-width:860px){.auto-stop{bottom:auto;top:64px}}
