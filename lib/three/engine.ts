@@ -218,11 +218,12 @@ function launchPad(tag, x, z, tx, tz) {
   const g = new THREE.Group(); g.name = `launch_pad_${tag}`; g.position.set(x, B, z); scene.add(g);
   const inner = new THREE.Group(); g.add(inner); g.visible = false;
   cyl(inner, `pad_${tag}_base`, .52, .05, M.padC, 0, 0, 0, 48);
-  cyl(inner, `pad_${tag}_ring`, .36, .004, M.padRing, 0, .05, 0, 48); cyl(inner, `pad_${tag}_ring_in`, .33, .006, M.padInner, 0, .05, 0, 48);
-  for (let k = 0; k < 12; k++) { const a = k/12*Math.PI*2, l = new THREE.Mesh(new THREE.SphereGeometry(.016, 10, 8), M.padRing); l.name = `pad_${tag}_light_${k}`; l.position.set(Math.cos(a)*.44, .055, Math.sin(a)*.44); inner.add(l); }
-  { const pool = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI/2), M.padPool); pool.name = `pad_${tag}_glow`; pool.scale.set(1.3, 1, 1.3); pool.position.y = .062; pool.renderOrder = 2; pool.userData.noExport = true; inner.add(pool); }
+  const mats = { ring: M.padRing.clone(), inner: M.padInner.clone(), pool: M.padPool.clone() };
+  cyl(inner, `pad_${tag}_ring`, .36, .004, mats.ring, 0, .05, 0, 48); cyl(inner, `pad_${tag}_ring_in`, .33, .006, mats.inner, 0, .05, 0, 48);
+  for (let k = 0; k < 12; k++) { const a = k/12*Math.PI*2, l = new THREE.Mesh(new THREE.SphereGeometry(.016, 10, 8), mats.ring); l.name = `pad_${tag}_light_${k}`; l.position.set(Math.cos(a)*.44, .055, Math.sin(a)*.44); inner.add(l); }
+  const pool = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI/2), mats.pool); pool.name = `pad_${tag}_glow`; pool.scale.set(1.3, 1, 1.3); pool.position.y = .062; pool.renderOrder = 2; pool.userData.noExport = true; inner.add(pool);
   [Math.PI/4, -Math.PI/4].forEach((a, k) => box(inner, `pad_${tag}_x_${k}`, .4, .004, .045, M.mark, 0, .05, 0).rotation.y = a);
-  if (tx === null) return { g, inner };
+  if (tx === null) return { g, inner, mats, pool };
   { const olm = new THREE.Group(); olm.name = `pad_${tag}_launch_mount`; inner.add(olm);
     for (let k = 0; k < 8; k++) { const a = k/8*Math.PI*2; const seg = box(olm, `olm_table_${k}`, .1, .05, .055, M.towerS, Math.cos(a)*.15, .05 + OLM_H - .05, Math.sin(a)*.15); seg.rotation.y = -a + Math.PI/2; }
     for (let k = 0; k < 6; k++) { const a = Math.PI/6 + k/6*Math.PI*2; box(olm, `olm_leg_${k}`, .05, OLM_H - .04, .05, M.towerS, Math.cos(a)*.17, .05, Math.sin(a)*.17);
@@ -234,8 +235,10 @@ function launchPad(tag, x, z, tx, tz) {
   const arms = new THREE.Group(); arms.name = `pad_${tag}_chopsticks`; arms.position.set(tx, 1.58, tz); arms.rotation.y = Math.atan2(tz, -tx); inner.add(arms);
   const L = Math.hypot(tx, tz) + .16, piv = [-1, 1].map(sd => { const p = new THREE.Group(); p.position.z = sd*.185; p.userData.sd = sd; arms.add(p); box(p, `pad_${tag}_arm_${sd}`, L, .035, .035, M.towerS, L/2, 0, 0); return p; });
   box(arms, `pad_${tag}_carriage`, .08, .12, .28, M.towerS, .06, -.04, 0);
-  return { g, inner, piv };
+  return { g, inner, piv, mats, pool };
 }
+// how much each pad is lit by its own stage's plume (0 = idle, 1 = engines firing right above it)
+const PADLIT = [0, 0], PADGLOW = [0, 0]; // PADGLOW = displayed value: quick rise, short afterglow when engines cut
 const PADS = [launchPad('kul', -.5, -.25, -.68, .06), launchPad('sin', 3.15, -2.35, null, null)];
 let padK = 0;
 const smoke = new THREE.Group(); smoke.name = 'pad_smoke'; scene.add(smoke);
@@ -373,6 +376,7 @@ function rocketPose(u, now, hg) {
   { const e13 = c > .63 ? sm(5.4, 4.8, altB)*(1 - sm(1.8, 1.2, altB)) : 0, xz = c <= C_SEP ? 1.15 : c < .63 ? .85 : .5 + .5*e13; st.bFlame.scale.x *= xz; st.bFlame.scale.z *= xz; if (c > .63) st.bFlame.scale.y *= .75 + .35*e13; }
   trMesh.visible = trGlow.visible = false;
   rocketLight.position.copy(bT >= sT ? st.bG.position : st.sG.position); rocketLight.intensity = Math.max(bT, sT)*7;
+  PADLIT[0] = Math.min(1, bT)*sm(2.6, .35, st.bG.position.y - RK_A.y); PADLIT[1] = Math.min(1, sT)*sm(2.6, .15, st.sG.position.y - RK_A.y);
   { const k = (c - C_SEP + .006)/.06, on = k > 0 && k < 1;
     if (!SEPFX && on) { SEPFX = { f: new THREE.Sprite(new THREE.SpriteMaterial({ map: softTex, color: 0xe2f1ff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })),
       r: new THREE.Mesh(new THREE.RingGeometry(.7, 1, 64), new THREE.MeshBasicMaterial({ color: 0xeaf4ff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })) }; scene.add(SEPFX.f, SEPFX.r); }
@@ -856,6 +860,7 @@ function S(s, p, t) {
       o.cloud = sm(.24, .32, p)*(1 - sm(.74, .86, p)); o.fog = sm(.34, .42, p)*(1 - sm(.6, .68, p));
       const star = isStar(), sw = sm(.15, .23, p)*(1 - (star ? sm(.58, .7, p) : sm(.8, .9, p))); if (star) rocketPoint(u, _fp); else flight.getPointAt(u, _fp);
       const cS = star ? rkC(u) : 0, orb = star ? sm(.2, .32, cS)*(1 - sm(.64, .74, cS)) : sm(.36, .46, p)*(1 - sm(.56, .66, p));
+      if (star) o.cloud *= 1 - sm(.25, .35, cS); // climb only: keep the belly-flop re-entry clear
       const lc = [25 + u*80, 6, 10.5, -.5, 1.1 + (_fp.y - .35)*.6, -.25, 0, -.12];
       const ch = [40 + u*110, 6 + 12*sm(.25, .4, p)*(1 - sm(.6, .72, p)) - 4*orb, 6.5 + 5.5*orb, _fp.x, _fp.y + .8, _fp.z, 0, -.1];
       const chase = star ? mix(lc, ch, sm(.13, .26, u)) : [headAt(u) - 150, 12 + 10*sm(.25, .4, p)*(1 - sm(.55, .7, p)), 2.9, _fp.x, _fp.y, _fp.z, 0, -.06];
@@ -978,7 +983,7 @@ function frame(now) { if (_dead) return;
     const rwK = 1 - sm(0, .42, padK), riseK = sm(.38, 1, padK);
     RUNWAYS.forEach((rw, i) => { rw.visible = rwK > .003; rw.scale.set(.4 + .6*rwK, 1, Math.max(.001, rwK*rwK*(3 - 2*rwK))); rw.position.y = B - .012*(1 - rwK); });
     PADS.forEach(pd => { pd.g.visible = riseK > .003; pd.inner.scale.set(.6 + .4*riseK, Math.max(.001, backOut(riseK)), .6 + .4*riseK); });
-    if (ud.star) rocketPose(u, now, hg); else { rocketLight.intensity = 0; smoke.visible = smoke2.visible = false; if (SEPFX) SEPFX.f.visible = SEPFX.r.visible = false; LC.visible = false; trMesh.visible = trGlow.visible = false; if (RE) RE.wake.visible = RE.halo.visible = false; if (VFX) VFX.vent.concat(VFX.cat).forEach(s => s.visible = false); }
+    if (ud.star) rocketPose(u, now, hg); else { rocketLight.intensity = 0; PADLIT[0] = PADLIT[1] = 0; smoke.visible = smoke2.visible = false; if (SEPFX) SEPFX.f.visible = SEPFX.r.visible = false; LC.visible = false; trMesh.visible = trGlow.visible = false; if (RE) RE.wake.visible = RE.halo.visible = false; if (VFX) VFX.vent.concat(VFX.cat).forEach(s => s.visible = false); }
     const sp = ud.star ? cur.space : 0, cS = ud.star ? rkC(u) : 0; stars.visible = sp > .01; starMat.opacity = sp;
     orbit.visible = !!ud.star && cS > .1 && cS < .9; // above the frame until the climb brings them in
     if (orbit.visible) { const d0 = camera.position.distanceTo(tgt), th = Math.tan(camera.fov*Math.PI/360);
@@ -989,7 +994,10 @@ function frame(now) { if (_dead) return;
     hangarEl.style.opacity = clamp(hg*1.8).toFixed(3); hangarEl.style.pointerEvents = hg > .5 ? 'auto' : 'none';
     hangarEl.classList.toggle('show', hg > .45); passEl.classList.toggle('hold', hg > .3); passEl.classList.toggle('done', u > .985); passEl.classList.toggle('mini', !!ud.star && u > .03 && u <= .985); }
   { const nl = sm(.5, 1, nt); M.glow.emissiveIntensity = .3 + 2.8*nl; M.mbs.emissiveIntensity = .45*nl; M.vortex.emissiveIntensity = .35 + 1.6*nl; }
-  { const pl = .85 + .15*Math.sin(t*2.6); M.padRing.emissiveIntensity = 1.4*pl*(1 + nt); M.padInner.emissiveIntensity = .7*pl*(1 + nt); M.padPool.opacity = .45*pl*(1 + .6*nt); }
+  { const pl = .92 + .08*Math.sin(t*2.6);
+    PADS.forEach((pd, i) => { PADGLOW[i] += (PADLIT[i] - PADGLOW[i])*(1 - Math.exp(-dt*(PADLIT[i] > PADGLOW[i] ? 12 : 2.2))); const L = PADGLOW[i], m = pd.mats;
+      m.ring.emissiveIntensity = (.5 + .5*nt)*pl + .5*L; m.inner.emissiveIntensity = .05 + .12*nt + .75*L;
+      m.pool.opacity = (.05 + .12*nt)*pl + .5*L; pd.pool.scale.setScalar(1 + .5*L); }); }
   azureCloud.scale.setScalar(Math.max(.001, cur.azure)); azureCloud.visible = cur.azure > .02;
   M.puff.opacity = cur.cloud*.92; clouds.visible = cur.cloud > .01;
   clouds.children.forEach((g, i) => g.position.x += Math.sin(t*.2 + i)*.0008);
