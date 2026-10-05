@@ -317,12 +317,12 @@ function boosterPath() {
 const _bp = new THREE.Vector3(), _ba = new THREE.Vector3(), _fx = new THREE.Vector3(), BFLIP = new THREE.Quaternion(), _rx90 = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI/2), CB_L = .99;
 let SEPFX = null;
 const shipOff = c => (1.02 + .55*sm(C_SEP, C_SEP + .06, c))*(1 - sm(C_SEP + .05, .72, c));
-const boosterCb = c => { const k = clamp((c - .6)/(CB_L - .6)); return .6 + .4*(1 - Math.pow(1 - k, 1.3)); };
+const boosterCb = c => { const k = clamp((c - .6)/(CB_L - .6)); return .6 + .4*(1 - Math.pow(1 - k, 1.1)); };
 function boosterAlt(c) { if (c < .6) return 99; rkPos(boosterCb(c), _ba); return Math.max(0, _ba.y - RK_A.y); }
 function boosterAt(c, out) {
   boosterPath(); if (c <= C_SEP) return rkPos(c, out);
   boosterFollow(c, out); const w = sm(.6, .74, c); if (w <= 0) return out;
-  const cb = boosterCb(c), h = sm(.6, .97, cb); rkPos(cb, _bp); const ty = PAD2.y + Math.max(0, _bp.y - RK_A.y);
+  const cb = boosterCb(c), h = sm(.66, .98, cb); rkPos(cb, _bp); const ty = PAD2.y + Math.max(0, _bp.y - RK_A.y);
   return out.set(out.x + (PAD2.x - out.x)*h*w, out.y + (ty - out.y)*w, out.z + (PAD2.z - out.z)*h*w);
 }
 const _hh = new THREE.Vector3(), _vv = new THREE.Vector3(), _vel = new THREE.Vector3(), _pax = new THREE.Vector3(), _shq = new THREE.Quaternion(), _rc = new THREE.Color(0x7ab8ff), _rcR = new THREE.Color(0xff8a4a);
@@ -864,7 +864,7 @@ function S(s, p, t) {
       o.cam = mix(fixed, chase, sw);
       if (star) { const c = rkC(u); boosterAt(c, _cb); rkPos(c, _cs).addScaledVector(_Y, shipOff(c));
         const ds = sm(C_SEP - .05, C_SEP - .006, c), land = sm(8, 1.2, _cs.y - RK_A.y), spread = _cb.distanceTo(_cs);
-        const pair = mix([mix(40 + u*110, 70, sm(.5, .8, c)), mix(5, 13, sm(.62, .96, c)), Math.max(6, 3.6 + spread*2.9), (_cb.x + _cs.x)/2, (_cb.y + _cs.y)/2, (_cb.z + _cs.z)/2, 0, 0], [80, 16, 10.5, 1.6, 1.0, -1.6, 0, -.06], land);
+        const pair = mix([mix(40 + u*110, 70, sm(.5, .8, c)), mix(5, 13, sm(.62, .96, c)), Math.max(6, 3.6 + spread*2.2), (_cb.x + _cs.x)/2, (_cb.y + _cs.y)/2, (_cb.z + _cs.z)/2, 0, 0], [80, 16, 10.5, 1.6, 1.0, -1.6, 0, -.06], land);
         let pc = mix(mix(lc, ch, sm(.13, .26, u)), pair, ds); const wS = sm(.6, .65, c)*(1 - sm(.79, .84, c)), wB = sm(.8, .85, c)*(1 - sm(.9, .95, c));
         o.cam = mix(arrive, pc, sm(.15, .23, p)); } o.sun = [130, 40]; o.sky = mix(SKY[5], [[200,220,240],[236,242,248]], sm(.25, .4, p)*(1 - sm(.6, .75, p)));
       if (star) { o.fog = 0; o.space = orb; o.sky = mix(o.sky, [[4,6,18],[24,32,72]], sm(.15, .3, cS)*(1 - sm(.74, .86, cS))); }
