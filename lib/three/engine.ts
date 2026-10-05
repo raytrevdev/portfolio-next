@@ -261,21 +261,22 @@ M.issPanel = std('iss_solar_array', 0xffffff, .35, .4, { map: cellTex('#7a5a2c',
 M.radiator = std('radiator_white', 0xf2f2ee, .5, .1);
 const pbox = (p, name, w, h, d, m, x, y, z) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.name = name; o.position.set(x, y, z); p.add(o); return o; };
 const dishGeo = new THREE.LatheGeometry([...Array(9)].map((_, i) => new THREE.Vector2(.06*i/8, .025*(i/8)**2)), 24);
-const orbit = new THREE.Group(); orbit.name = 'low_earth_orbit'; orbit.position.set(-.3, 50.3, -7.2); orbit.rotation.set(.35, 0, .2); orbit.visible = false; scene.add(orbit);
+const orbit = new THREE.Group(); orbit.name = 'low_earth_orbit'; orbit.visible = false; scene.add(orbit);
+// Space props are a backdrop: each frame they are placed BEHIND the camera's focus (the booster + ship)
+// at a fixed screen spot (nx, ny), depth D past the focus, scale k, drifting by `drift` over the coast.
 const SATS = [];
-for (let k = 0; k < 6; k++) {
-  const piv = new THREE.Group(); piv.rotation.y = k/6*Math.PI*2; orbit.add(piv);
-  const s = new THREE.Group(); s.name = `satellite_${k}`; s.position.set(k % 2 ? 3.4 : 2.6, (k % 3 - 1)*.5, 0); piv.add(s);
+const SAT_AT = [{ nx: -.62, ny: -.12, D: 16, k: 1.1, drift: .1, rx: .6, rz: .2, m: { nx: -.6, ny: .1, D: 22 } }, { nx: .02, ny: .6, D: 22, k: 1.1, drift: -.12, rx: .9, rz: -.3, m: { nx: .55, ny: -.05, D: 26 } }];
+for (let k = 0; k < SAT_AT.length; k++) {
+  const s = new THREE.Group(); s.name = `satellite_${k}`; orbit.add(s);
   box(s, 'sat_bus', .14, .12, .11, M.satBody, 0, -.06, 0); pbox(s, 'sat_radiator', .142, .006, .112, M.radiator, 0, .063, 0);
   [-1, 1].forEach(sd => { const bm = cyl(s, `sat_boom_${sd}`, .005, .08, M.steelS, 0, 0, 0, 8); bm.rotation.z = Math.PI/2; bm.position.set(sd*.1, 0, 0);
     for (let i = 0; i < 3; i++) pbox(s, `sat_panel_${sd}_${i}`, .13, .006, .17, M.panel, sd*(.205 + i*.138), 0, 0); });
   const mast = cyl(s, 'sat_mast', .006, .05, M.steelS, 0, 0, 0, 8); mast.position.set(0, -.085, .03);
   const dish = new THREE.Mesh(dishGeo, M.radiator); dish.name = 'sat_dish'; dish.material.side = THREE.DoubleSide; dish.position.set(0, -.115, .03); dish.rotation.x = Math.PI + .5; s.add(dish);
   const ant = cyl(s, 'sat_antenna', .003, .09, M.steelS, 0, 0, 0, 6); ant.position.set(.04, .11, -.03);
-  SATS.push({ piv, s, sp: .05 + (k % 3)*.02 });
+  SATS.push({ s, spin: .3, ang: k*2, ...SAT_AT[k] });
 }
-{ const piv = new THREE.Group(); piv.rotation.y = 1.1; orbit.add(piv);
-  const iss = new THREE.Group(); iss.name = 'international_space_station'; iss.position.set(4.6, .7, 0); iss.rotation.set(.25, 0, .1); piv.add(iss);
+{ const iss = new THREE.Group(); iss.name = 'international_space_station'; orbit.add(iss);
   pbox(iss, 'iss_truss', 1.5, .035, .035, M.grey, 0, 0, 0);
   [-.68, -.45, .45, .68].forEach((x, i) => { pbox(iss, `iss_mast_${i}`, .02, .02, .1, M.grey, x, 0, 0);
     [-1, 1].forEach(sd => pbox(iss, `iss_array_${i}_${sd}`, .1, .004, .46, M.issPanel, x, 0, sd*.28)); });
@@ -283,8 +284,10 @@ for (let k = 0; k < 6; k++) {
   [[0, .32, .05], [0, -.08, .05], [.0, -.36, .04]].forEach(([x, z, r], i) => { const m = cyl(iss, `iss_module_${i}`, r, i === 0 ? .26 : .3, M.white, 0, 0, 0, 24); m.rotation.x = Math.PI/2; m.position.set(x, -.06, z); });
   const lab = cyl(iss, 'iss_lab', .045, .24, M.white, 0, 0, 0, 24); lab.rotation.z = Math.PI/2; lab.position.set(.14, -.06, .05);
   pbox(iss, 'iss_module_array_l', .32, .003, .07, M.panel, -.2, -.06, -.36); pbox(iss, 'iss_module_array_r', .32, .003, .07, M.panel, .2, -.06, -.36);
-  SATS.push({ piv, s: iss, sp: .022, spin: .02 });
+  // upper right, behind the stack; tilted so the solar arrays face the camera
+  SATS.push({ s: iss, spin: .05, ang: .4, nx: .52, ny: .3, D: 10, k: 1.5, drift: -.16, rx: 1.05, rz: .18, m: { nx: .42, ny: .34, D: 14, drift: -.1 } });
 }
+const _bd = new THREE.Vector3(), _br = new THREE.Vector3(), _bu = new THREE.Vector3(), _bq = new THREE.Quaternion(), _be = new THREE.Euler();
 const starGeo = new THREE.BufferGeometry(); { const a = []; for (let i = 0; i < 700; i++) { const u = Math.random()*2 - 1, th = Math.random()*Math.PI*2, r = 70, q = Math.sqrt(1 - u*u); a.push(1.5 + r*q*Math.cos(th), 50 + r*u, -3 + r*q*Math.sin(th)); } starGeo.setAttribute('position', new THREE.Float32BufferAttribute(a, 3)); }
 const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 2, sizeAttenuation: false, transparent: true, opacity: 0, depthWrite: false });
 const stars = new THREE.Points(starGeo, starMat); stars.visible = false; stars.frustumCulled = false; scene.add(stars);
@@ -969,7 +972,11 @@ function frame(now) { if (_dead) return;
     PADS.forEach(pd => { pd.g.visible = riseK > .003; pd.inner.scale.set(.6 + .4*riseK, Math.max(.001, backOut(riseK)), .6 + .4*riseK); });
     if (ud.star) rocketPose(u, now, hg); else { rocketLight.intensity = 0; smoke.visible = smoke2.visible = false; if (SEPFX) SEPFX.f.visible = SEPFX.r.visible = false; LC.visible = false; trMesh.visible = trGlow.visible = false; if (RE) RE.wake.visible = RE.halo.visible = false; if (VFX) VFX.vent.concat(VFX.cat).forEach(s => s.visible = false); }
     const sp = ud.star ? cur.space : 0; orbit.visible = stars.visible = sp > .01; starMat.opacity = sp;
-    if (sp > .01) SATS.forEach(o => { o.piv.rotation.y += dt*o.sp*(RM ? .2 : 1); o.s.rotation.y += dt*(o.spin ?? .3); });
+    if (sp > .01) { const cS = rkC(u), d0 = camera.position.distanceTo(tgt), th = Math.tan(camera.fov*Math.PI/360), grow = sm(.01, .6, sp);
+      camera.getWorldDirection(_bd); _br.crossVectors(_bd, camera.up).normalize(); _bu.crossVectors(_br, _bd);
+      SATS.forEach(o => { const P = mob && o.m ? { ...o, ...o.m } : o, d = d0 + P.D, h = d*th; o.ang += dt*o.spin*(RM ? .2 : 1);
+        o.s.position.copy(camera.position).addScaledVector(_bd, d).addScaledVector(_br, (P.nx + P.drift*sm(.2, .74, cS))*h*camera.aspect).addScaledVector(_bu, P.ny*h);
+        o.s.quaternion.copy(camera.quaternion).multiply(_bq.setFromEuler(_be.set(o.rx, o.ang, o.rz))); o.s.scale.setScalar(Math.max(.001, o.k*grow)); }); }
     hangarEl.style.opacity = clamp(hg*1.8).toFixed(3); hangarEl.style.pointerEvents = hg > .5 ? 'auto' : 'none';
     hangarEl.classList.toggle('show', hg > .45); passEl.classList.toggle('hold', hg > .3); passEl.classList.toggle('done', u > .985); passEl.classList.toggle('mini', !!ud.star && u > .03 && u <= .985); }
   { const nl = sm(.5, 1, nt); M.glow.emissiveIntensity = .3 + 2.8*nl; M.mbs.emissiveIntensity = .45*nl; M.vortex.emissiveIntensity = .35 + 1.6*nl; }
