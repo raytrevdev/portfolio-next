@@ -943,6 +943,8 @@ function roadAt(f) { f = clamp(f, 0, NODES.length - 1);
   return [_p.x, _p.z, B + .014]; }
 const tgt = new THREE.Vector3(), dayC = new THREE.Color(0xfff4e6), duskC = new THREE.Color(0xffc79a), nightC = new THREE.Color(0x8fa6ff);
 let cur = null, last = performance.now(), lastRmShot = '';
+// entrance: after the first rendered frame the canvas fades in (CSS) while the board rises into place; skipped if already scrolled
+let entT0 = -1;
 const vhProbe = document.createElement('div'); vhProbe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:100lvh;visibility:hidden;pointer-events:none'; document.body.appendChild(vhProbe);
 let VW = 0, VH = 0;
 function resize() { const w = innerWidth, h = MOB ? Math.max(innerHeight, vhProbe.offsetHeight) : innerHeight;
@@ -1014,6 +1016,9 @@ function frame(now) { if (_dead) return;
   document.getElementById('fog').style.opacity = cur.fog.toFixed(3);
   puck.position.set(px, py + .05, pz); puck.visible = cur.puck > .05; puck.scale.setScalar(Math.max(.01, cur.puck));
   const hc = oklch(.7, .18, cur.hue); M.puck.emissive.copy(hc); puckLight.color.copy(hc); puckLight.position.set(px, py + .6, pz); puckLight.intensity = cur.puck*(3 + 6*nt);
+  if (entT0 < 0) { entT0 = now; document.documentElement.classList.add('city-ready'); if (scrollY < 40) document.querySelectorAll('#start .count').forEach(countUp); }
+  { const ek = RM || scrollY > 40 ? 1 : clamp((now - entT0)/900); if (ek >= 1) entT0 = Math.min(entT0, now - 900);
+    scene.position.y = -.45*(1 - ek)**3; }
   updateAmbient(dt, cur); updateFireworks(dt); renderer.render(scene, camera); _raf = requestAnimationFrame(frame);
 }
 _raf = requestAnimationFrame(frame);
@@ -1032,7 +1037,7 @@ return () => {
   tl.querySelectorAll('a').forEach(a => a.remove());
   document.getElementById('hDots')?.replaceChildren();
   vhProbe.remove();
-  document.documentElement.style.removeProperty('--a');
+  document.documentElement.style.removeProperty('--a'); document.documentElement.classList.remove('city-ready');
   // free GPU memory
   const freeMat = mt => { for (const k in mt) { const v = mt[k]; if (v && v.isTexture) v.dispose(); } mt.dispose(); };
   const free = o => { o.geometry?.dispose(); (Array.isArray(o.material) ? o.material : o.material ? [o.material] : []).forEach(freeMat); };
