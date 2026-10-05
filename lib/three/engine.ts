@@ -362,7 +362,7 @@ function rocketPose(u, now, hg) {
     eg.bIn.opacity = Math.min(1, bT)*.95; eg.bMid.opacity = Math.max(asc, bb, lb*e13)*.95; eg.bOut.opacity = asc*.95;
     const res = c >= 1 ? .6*(1 - sm(.97, .99, u)) : 0; eg.sIn.opacity = Math.max(c >= .6 ? sT : sT*.5, res)*.95; eg.sIn.color.setHex(res > .02 && sT < .05 ? 0xffa25a : 0xcfeaff); eg.sVac.opacity = (c > C_SEP - .01 && c < .6 ? sT : 0)*.95;
     eg.vent.opacity = c > C_SEP - .012 && c < C_SEP + .04 ? sm(C_SEP - .01, C_SEP - .002, c)*(1 - sm(C_SEP + .004, C_SEP + .03, c)) : 0;
-    M.frost.opacity = .8*(1 - sm(.05, .16, u)); }
+    M.frost.opacity = 1 - sm(.05, .16, u); }
   { if (!VFX) { const sp = () => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: softTex, color: 0xffffff, transparent: true, depthWrite: false, opacity: 0 })); scene.add(s); return s; };
       VFX = { vent: [...Array(10)].map(sp), cat: [...Array(6)].map(sp) }; }
     const vk = 1 - sm(.02, .045, u), HV = [.15, .35, .6, .85, 1.1, 1.25, 1.45, 1.6, 1.75, .5];
@@ -443,7 +443,14 @@ const PLANES = {
     cyl(bG, 'booster_body', Rr, .9, M.steelS, 0, .07, 0, 40);
     M.hsr = M.hsr || std('hot_stage_ring', 0x6a6c70, .45, .65); cyl(bG, 'hot_stage_ring', Rr*1.015, .05, M.hsr, 0, .97, 0, 32);
     M.nozzle = M.nozzle || std('raptor_nozzle', 0x3a3b3f, .45, .7);
-    M.frost = M.frost || std('pad_frost', 0xf4f7fa, .95, 0, { transparent: true, opacity: 0, depthWrite: false });
+    M.frost = M.frost || std('booster_frost', 0xffffff, 1, 0, { transparent: true, opacity: 0, depthWrite: false, emissive: 0xdfe8f2, emissiveIntensity: .35,
+      map: (() => { const c = document.createElement('canvas'); c.width = 128; c.height = 512; const g = c.getContext('2d'), rnd = (a, b) => a + Math.random()*(b - a);
+        // y runs top (CH4 tank) → bottom (LOX tank); bare band at the common dome and above the methane tank
+        const tanks = [[40, 220], [262, 500]];
+        tanks.forEach(([y0, y1]) => { const gr = g.createLinearGradient(0, y0, 0, y1); gr.addColorStop(0, 'rgba(255,255,255,.55)'); gr.addColorStop(.12, 'rgba(255,255,255,.92)'); gr.addColorStop(.88, 'rgba(255,255,255,.95)'); gr.addColorStop(1, 'rgba(255,255,255,.6)'); g.fillStyle = gr; g.fillRect(0, y0, 128, y1 - y0);
+          for (let i = 0; i < 70; i++) { g.fillStyle = `rgba(214,224,234,${rnd(.25, .6)})`; g.fillRect(0, rnd(y0, y1), 128, rnd(1, 4)); }   // ice rings
+          for (let i = 0; i < 90; i++) { g.fillStyle = `rgba(255,255,255,${rnd(.4, .9)})`; g.beginPath(); g.ellipse(rnd(0, 128), rnd(y0, y1), rnd(3, 10), rnd(2, 6), 0, 0, Math.PI*2); g.fill(); } }); // patches
+        const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; t.repeat.set(3, 1); return t; })() });
     const mkGlow = col => new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
     const bellGeo = (r, hg) => new THREE.LatheGeometry([...Array(7)].map((_, i) => { const t = i/6; return new THREE.Vector2(r*(.45 + .55*Math.pow(t, .7)), -hg*t); }), 16);
     const engRing = (parent, n, rad, r, hg, gm, off = 0) => { const g1 = bellGeo(r, hg), dg = new THREE.CircleGeometry(r*.92, 14).rotateX(Math.PI/2);
@@ -452,7 +459,7 @@ const PLANES = {
     engRing(bG, 3, .016, .009, .026, eg.bIn, .3); engRing(bG, 10, .043, .009, .026, eg.bMid); engRing(bG, 20, .07, .0085, .024, eg.bOut, .15);
     for (let k = 0; k < 12; k++) { const a = k/12*Math.PI*2; pbox(bG, 'hsr_slot', .02, .03, .004, M.nozzle, Math.cos(a)*Rr*1.017, .995, Math.sin(a)*Rr*1.017).rotation.y = Math.PI/2 - a;
       pbox(bG, 'hsr_vent_glow', .021, .031, .004, eg.vent, Math.cos(a)*Rr*1.022, .995, Math.sin(a)*Rr*1.022).rotation.y = Math.PI/2 - a; }
-    { const fr = new THREE.Mesh(new THREE.CylinderGeometry(Rr*1.008, Rr*1.008, .9, 40, 1, true), M.frost); fr.name = 'booster_frost_band'; fr.position.y = .52; bG.add(fr); }
+    { const fr = new THREE.Mesh(new THREE.CylinderGeometry(Rr*1.012, Rr*1.012, .9, 40, 1, true), M.frost); fr.name = 'booster_frost_band'; fr.position.y = .52; bG.add(fr); }
     M.gridFin = M.gridFin || std('grid_fin', 0xffffff, .5, .55, { map: cellTex('#2b2b2e', '#a0a0a8') });
     const fins = []; for (let k = 0; k < 4; k++) { const a = Math.PI/4 + k*Math.PI/2, piv = new THREE.Group(); piv.position.set(Math.cos(a)*Rr, .9, Math.sin(a)*Rr); piv.rotation.set(0, -a, Math.PI/2); bG.add(piv);
       const fin = new THREE.Group(); piv.add(fin); pbox(fin, `grid_fin_${k}`, .12, .014, .1, M.gridFin, .06, 0, 0); pbox(fin, `grid_fin_frame_${k}`, .124, .022, .008, M.towerS, .06, 0, .05); pbox(fin, `grid_fin_frame_b_${k}`, .124, .022, .008, M.towerS, .06, 0, -.05); fins.push({ piv, fin, a }); }
@@ -472,7 +479,6 @@ const PLANES = {
     { const eg2 = new THREE.CylinderGeometry(.015, .015, .003, 6).rotateZ(Math.PI/2), em = new THREE.InstancedMesh(eg2, M.tpsEdge, 36), d = new THREE.Object3D(); let n = 0;
       [-1, 1].forEach(sd => { for (let i = 0; i < 18; i++) { const ph = sd*(Math.PI/2 + (i % 2 ? .17 : .08)), R2 = Rr*1.016; d.position.set(R2*Math.sin(ph), .035 + i*.027, R2*Math.cos(ph)); d.rotation.set(0, ph - Math.PI/2, 0); d.updateMatrix(); em.setMatrixAt(n++, d.matrix); } });
       em.name = 'ship_tps_edge'; sG.add(em); }
-    { const fr = new THREE.Mesh(new THREE.CylinderGeometry(Rr*1.02, Rr*1.02, .16, 40, 1, true), M.frost); fr.name = 'ship_frost_band'; fr.position.y = .1; sG.add(fr); }
     engRing(sG, 3, .02, .011, .028, eg.sIn, .5); engRing(sG, 3, .052, .02, .045, eg.sVac, .5 + Math.PI/3);
     const flapGeo = pts => { const s = new THREE.Shape(); s.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) s.lineTo(pts[i][0], pts[i][1]); s.closePath(); return new THREE.ExtrudeGeometry(s, { depth: .008, bevelEnabled: true, bevelThickness: .002, bevelSize: .002, bevelSegments: 2 }).translate(0, 0, -.004); };
     const fGeo = flapGeo([[0, -.05], [.015, -.05], [.05, -.02], [.05, .025], [.02, .05], [0, .055]]), aGeo = flapGeo([[0, -.085], [.05, -.085], [.072, -.06], [.07, .045], [.03, .085], [0, .085]]);
@@ -858,7 +864,7 @@ function S(s, p, t) {
       o.cam = mix(fixed, chase, sw);
       if (star) { const c = rkC(u); boosterAt(c, _cb); rkPos(c, _cs).addScaledVector(_Y, shipOff(c));
         const ds = sm(C_SEP - .05, C_SEP - .006, c), land = sm(8, 1.2, _cs.y - RK_A.y), spread = _cb.distanceTo(_cs);
-        const pair = mix([mix(40 + u*110, 70, sm(.5, .8, c)), mix(5, 13, sm(.62, .96, c)), Math.max(6, 3.6 + spread*2.3), (_cb.x + _cs.x)/2, (_cb.y + _cs.y)/2 + .35, (_cb.z + _cs.z)/2, 0, -.1], [80, 16, 10.5, 1.6, 1.0, -1.6, 0, -.06], land);
+        const pair = mix([mix(40 + u*110, 70, sm(.5, .8, c)), mix(5, 13, sm(.62, .96, c)), Math.max(6, 3.6 + spread*2.9), (_cb.x + _cs.x)/2, (_cb.y + _cs.y)/2, (_cb.z + _cs.z)/2, 0, 0], [80, 16, 10.5, 1.6, 1.0, -1.6, 0, -.06], land);
         let pc = mix(mix(lc, ch, sm(.13, .26, u)), pair, ds); const wS = sm(.6, .65, c)*(1 - sm(.79, .84, c)), wB = sm(.8, .85, c)*(1 - sm(.9, .95, c));
         o.cam = mix(arrive, pc, sm(.15, .23, p)); } o.sun = [130, 40]; o.sky = mix(SKY[5], [[200,220,240],[236,242,248]], sm(.25, .4, p)*(1 - sm(.6, .75, p)));
       if (star) { o.fog = 0; o.space = orb; o.sky = mix(o.sky, [[4,6,18],[24,32,72]], sm(.15, .3, cS)*(1 - sm(.74, .86, cS))); }
