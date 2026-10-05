@@ -9,6 +9,8 @@ export function mountCareerCity(): () => void {
 const _ac = new AbortController(), _sig = _ac.signal, _timers = new Set();
 let _dead = false, _raf = 0;
 const _st = (fn, ms) => { const id = setTimeout(() => { _timers.delete(id); if (!_dead) fn(); }, ms); _timers.add(id); return id; };
+// Default vehicle for first-time visitors (a returning visitor's pick is remembered in localStorage).
+const DEFAULT_PLANE = 'starship';
 const DISP = getComputedStyle(document.documentElement).getPropertyValue('--font-disp').trim() || '"Bricolage Grotesque", sans-serif';
 
 const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('gl'), antialias: true, alpha: true });
@@ -506,7 +508,7 @@ const PLANES = {
   }
 };
 function setPlane(type, pop = true) {
-  if (!PLANES[type]) type = 'airliner';
+  if (!PLANES[type]) type = DEFAULT_PLANE;
   { const sec = document.getElementById('causeway'), want = type === 'starship' ? (MOB ? '2500vh' : '3100vh') : (MOB ? '640vh' : '860vh');
     if (sec.style.height !== want) { const r = sec.getBoundingClientRect(), span0 = sec.offsetHeight - innerHeight, p = span0 > 0 ? Math.min(1, Math.max(0, -r.top/span0)) : 0, inside = r.top <= 0 && r.bottom >= innerHeight;
       sec.style.height = want; if (inside) { const top = scrollY + r.top; scrollTo(0, top + p*(sec.offsetHeight - innerHeight)); } } }
@@ -524,7 +526,7 @@ const PLANE_LIST = [['airliner', 'Airliner', 'Twin-engine widebody'], ['jumbo', 
 { const dots = document.getElementById('hDots'); PLANE_LIST.forEach(([id, name]) => { const d = document.createElement('button'); d.type = 'button'; d.setAttribute('aria-label', name); d.onclick = () => setPlane(id); dots.appendChild(d); }); }
 const cyclePlane = dir => { const i = PLANE_LIST.findIndex(p => p[0] === plane.userData.type); setPlane(PLANE_LIST[(i + dir + PLANE_LIST.length) % PLANE_LIST.length][0]); };
 document.querySelectorAll('.h-car [data-dir]').forEach(b => b.addEventListener('click', () => cyclePlane(+b.dataset.dir), { signal: _sig }));
-{ let saved = 'airliner'; try { saved = localStorage.getItem('rt-plane') || saved; } catch (e) {} setPlane(saved, false); }
+{ let saved = DEFAULT_PLANE; try { saved = localStorage.getItem('rt-plane') || saved; } catch (e) {} setPlane(saved, false); }
 addEventListener('keydown', e => { if (!document.getElementById('hangar').classList.contains('show')) return; if (e.key === 'ArrowRight') cyclePlane(1); if (e.key === 'ArrowLeft') cyclePlane(-1); }, { signal: _sig });
 
 document.querySelectorAll('[data-plane]').forEach(b => b.addEventListener('click', () => setPlane(b.dataset.plane), { signal: _sig }));

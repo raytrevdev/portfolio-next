@@ -22,7 +22,7 @@ export default function Overlay() {
         <div className="h-title">Pick your aircraft</div>
         <div className="h-car">
           <button type="button" data-dir="-1" aria-label="Previous aircraft">‹</button>
-          <div className="h-name" id="hName"><b>Airliner</b><span>Twin-engine widebody</span></div>
+          <div className="h-name" id="hName"><b>Starship</b><span>Pad to pad, via the edge of space</span></div>
           <button type="button" data-dir="1" className="nx" aria-label="Next aircraft">›</button>
         </div>
         <div className="h-dots" id="hDots"></div>
