@@ -262,10 +262,11 @@ M.radiator = std('radiator_white', 0xf2f2ee, .5, .1);
 const pbox = (p, name, w, h, d, m, x, y, z) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.name = name; o.position.set(x, y, z); p.add(o); return o; };
 const dishGeo = new THREE.LatheGeometry([...Array(9)].map((_, i) => new THREE.Vector2(.06*i/8, .025*(i/8)**2)), 24);
 const orbit = new THREE.Group(); orbit.name = 'low_earth_orbit'; orbit.visible = false; scene.add(orbit);
-// Space props are a backdrop: each frame they are placed BEHIND the camera's focus (the booster + ship)
-// at a fixed screen spot (nx, ny), depth D past the focus, scale k, drifting by `drift` over the coast.
+// Space props sit at a fixed orbital altitude (ORB_Y + dy), so the camera climbing with the rocket reveals them
+// from the top of the frame until the ship is level with them at apogee. Horizontally they are kept BEHIND the
+// camera's focus (booster + ship): screen column nx, depth D past the focus, scale k, drifting by `drift`.
 const SATS = [];
-const SAT_AT = [{ nx: -.62, ny: -.12, D: 16, k: 1.1, drift: .1, rx: .6, rz: .2, m: { nx: -.6, ny: .1, D: 22 } }, { nx: .02, ny: .6, D: 22, k: 1.1, drift: -.12, rx: .9, rz: -.3, m: { nx: .55, ny: -.05, D: 26 } }];
+const SAT_AT = [{ nx: -.62, dy: -1.4, D: 16, k: 1.1, drift: .1, rx: .6, rz: .2, m: { nx: -.6, D: 22 } }, { nx: .02, dy: 2.6, D: 22, k: 1.1, drift: -.12, rx: .9, rz: -.3, m: { nx: .55, dy: 1.6, D: 26 } }];
 for (let k = 0; k < SAT_AT.length; k++) {
   const s = new THREE.Group(); s.name = `satellite_${k}`; orbit.add(s);
   box(s, 'sat_bus', .14, .12, .11, M.satBody, 0, -.06, 0); pbox(s, 'sat_radiator', .142, .006, .112, M.radiator, 0, .063, 0);
@@ -285,9 +286,10 @@ for (let k = 0; k < SAT_AT.length; k++) {
   const lab = cyl(iss, 'iss_lab', .045, .24, M.white, 0, 0, 0, 24); lab.rotation.z = Math.PI/2; lab.position.set(.14, -.06, .05);
   pbox(iss, 'iss_module_array_l', .32, .003, .07, M.panel, -.2, -.06, -.36); pbox(iss, 'iss_module_array_r', .32, .003, .07, M.panel, .2, -.06, -.36);
   // upper right, behind the stack; tilted so the solar arrays face the camera
-  SATS.push({ s: iss, spin: .05, ang: .4, nx: .52, ny: .3, D: 10, k: 1.5, drift: -.16, rx: 1.05, rz: .18, m: { nx: .42, ny: .34, D: 14, drift: -.1 } });
+  SATS.push({ s: iss, spin: .05, ang: .4, nx: .52, dy: .3, D: 10, k: 1.5, drift: -.16, rx: 1.05, rz: .18, m: { nx: .42, dy: -.8, D: 14, drift: -.1 } });
 }
-const _bd = new THREE.Vector3(), _br = new THREE.Vector3(), _bu = new THREE.Vector3(), _bq = new THREE.Quaternion(), _be = new THREE.Euler();
+const ORB_Y = RK_A.y + RK_H + 1.5; // ship altitude at apogee
+const _bd = new THREE.Vector3(), _br = new THREE.Vector3(), _bq = new THREE.Quaternion(), _be = new THREE.Euler();
 const starGeo = new THREE.BufferGeometry(); { const a = []; for (let i = 0; i < 700; i++) { const u = Math.random()*2 - 1, th = Math.random()*Math.PI*2, r = 70, q = Math.sqrt(1 - u*u); a.push(1.5 + r*q*Math.cos(th), 50 + r*u, -3 + r*q*Math.sin(th)); } starGeo.setAttribute('position', new THREE.Float32BufferAttribute(a, 3)); }
 const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 2, sizeAttenuation: false, transparent: true, opacity: 0, depthWrite: false });
 const stars = new THREE.Points(starGeo, starMat); stars.visible = false; stars.frustumCulled = false; scene.add(stars);
@@ -971,12 +973,13 @@ function frame(now) { if (_dead) return;
     RUNWAYS.forEach((rw, i) => { rw.visible = rwK > .003; rw.scale.set(.4 + .6*rwK, 1, Math.max(.001, rwK*rwK*(3 - 2*rwK))); rw.position.y = B - .012*(1 - rwK); });
     PADS.forEach(pd => { pd.g.visible = riseK > .003; pd.inner.scale.set(.6 + .4*riseK, Math.max(.001, backOut(riseK)), .6 + .4*riseK); });
     if (ud.star) rocketPose(u, now, hg); else { rocketLight.intensity = 0; smoke.visible = smoke2.visible = false; if (SEPFX) SEPFX.f.visible = SEPFX.r.visible = false; LC.visible = false; trMesh.visible = trGlow.visible = false; if (RE) RE.wake.visible = RE.halo.visible = false; if (VFX) VFX.vent.concat(VFX.cat).forEach(s => s.visible = false); }
-    const sp = ud.star ? cur.space : 0; orbit.visible = stars.visible = sp > .01; starMat.opacity = sp;
-    if (sp > .01) { const cS = rkC(u), d0 = camera.position.distanceTo(tgt), th = Math.tan(camera.fov*Math.PI/360), grow = sm(.01, .6, sp);
-      camera.getWorldDirection(_bd); _br.crossVectors(_bd, camera.up).normalize(); _bu.crossVectors(_br, _bd);
+    const sp = ud.star ? cur.space : 0, cS = ud.star ? rkC(u) : 0; stars.visible = sp > .01; starMat.opacity = sp;
+    orbit.visible = !!ud.star && cS > .1 && cS < .9; // above the frame until the climb brings them in
+    if (orbit.visible) { const d0 = camera.position.distanceTo(tgt), th = Math.tan(camera.fov*Math.PI/360);
+      camera.getWorldDirection(_bd); _br.crossVectors(_bd, camera.up).normalize();
       SATS.forEach(o => { const P = mob && o.m ? { ...o, ...o.m } : o, d = d0 + P.D, h = d*th; o.ang += dt*o.spin*(RM ? .2 : 1);
-        o.s.position.copy(camera.position).addScaledVector(_bd, d).addScaledVector(_br, (P.nx + P.drift*sm(.2, .74, cS))*h*camera.aspect).addScaledVector(_bu, P.ny*h);
-        o.s.quaternion.copy(camera.quaternion).multiply(_bq.setFromEuler(_be.set(o.rx, o.ang, o.rz))); o.s.scale.setScalar(Math.max(.001, o.k*grow)); }); }
+        o.s.position.copy(camera.position).addScaledVector(_bd, d).addScaledVector(_br, (P.nx + P.drift*sm(.2, .74, cS))*h*camera.aspect); o.s.position.y = ORB_Y + P.dy;
+        o.s.quaternion.copy(camera.quaternion).multiply(_bq.setFromEuler(_be.set(o.rx, o.ang, o.rz))); o.s.scale.setScalar(o.k); }); }
     hangarEl.style.opacity = clamp(hg*1.8).toFixed(3); hangarEl.style.pointerEvents = hg > .5 ? 'auto' : 'none';
     hangarEl.classList.toggle('show', hg > .45); passEl.classList.toggle('hold', hg > .3); passEl.classList.toggle('done', u > .985); passEl.classList.toggle('mini', !!ud.star && u > .03 && u <= .985); }
   { const nl = sm(.5, 1, nt); M.glow.emissiveIntensity = .3 + 2.8*nl; M.mbs.emissiveIntensity = .45*nl; M.vortex.emissiveIntensity = .35 + 1.6*nl; }
