@@ -11,6 +11,12 @@ let _dead = false, _raf = 0;
 const _st = (fn, ms) => { const id = setTimeout(() => { _timers.delete(id); if (!_dead) fn(); }, ms); _timers.add(id); return id; };
 // Default vehicle for first-time visitors (a returning visitor's pick is remembered in localStorage).
 const DEFAULT_PLANE = 'starship';
+// Analytics: pushes {event, ...params} to the GTM dataLayer. Until GTM is configured (layout sets window.__GTM__),
+// the same event also goes straight to GA4 via gtag so nothing is lost. Never throws.
+const track = (event, params = {}) => { try {
+  (window.dataLayer = window.dataLayer || []).push({ event, ...params });
+  if (!window.__GTM__ && typeof window.gtag === 'function') window.gtag('event', event, params);
+} catch (e) {} };
 const DISP = getComputedStyle(document.documentElement).getPropertyValue('--font-disp').trim() || '"Bricolage Grotesque", sans-serif';
 
 const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('gl'), antialias: true, alpha: true });
@@ -531,9 +537,8 @@ function setPlane(type, pop = true) {
   try { localStorage.setItem('rt-plane', type); } catch (e) {}
   document.querySelectorAll('[data-plane]').forEach(b => b.classList.toggle('on', b.dataset.plane === type));
   const i = PLANE_LIST.findIndex(p => p[0] === type), nm = document.getElementById('hName');
-  nm.innerHTML = `<b>${PLANE_LIST[i][1]}</b><span>${PLANE_LIST[i][2]}</span>`; nm.classList.remove('flip'); void nm.offsetWidth; if (pop) nm.classList.add('flip');
+  nm.innerHTML = `<b>${PLANE_LIST[i][1]}</b><span>${PLANE_LIST[i][2]}</span>`; nm.classList.remove('flip'); void nm.offsetWidth; if (pop) { nm.classList.add('flip'); track('aircraft_select', { aircraft: type }); }
   [...document.getElementById('hDots').children].forEach((d, k) => d.classList.toggle('on', k === i));
-  document.getElementById('hangar').classList.toggle('star', type === 'starship');
 }
 const PLANE_LIST = [['airliner', 'Airliner', 'Twin-engine widebody'], ['jumbo', 'Jumbo', 'Four engines, upper deck'], ['jet', 'Private jet', 'Business class only'],
   ['prop', 'Propeller', 'Low and slow'], ['paper', 'Paper plane', 'Folded at the desk'], ['ufo', 'UFO', 'Not from around here'], ['starship', 'Starship', 'Pad to pad, via the edge of space']];
@@ -927,7 +932,7 @@ function target(t) {
   const k = snap(clamp((ps[6] - .4)/.6)*5), cw = hcards[0].offsetWidth + parseFloat(getComputedStyle(htrack).columnGap || 14);
   htrack.style.transform = `translateX(${-k*cw}px)`; hcards.forEach((c, i) => c.classList.toggle('on', i === Math.round(k)));
   projs.forEach((d, i) => d.classList.toggle('on', i === (ps[7] < .5 ? 0 : 1)));
-  { const u = sm(.17, .92, ps[5]); passFill.style.width = u*100 + '%'; passDot.style.left = u*100 + '%'; km.textContent = Math.round(u*300);
+  { const u = sm(.17, .92, ps[5]); trackFlight(u); passFill.style.width = u*100 + '%'; passDot.style.left = u*100 + '%'; km.textContent = Math.round(u*300);
     passStage.textContent = isStar() ? (() => { const c = rkC(u); return u < .02 ? 'On the pad at KUL' : u < .07 ? 'Ignition' : c < .3 ? 'Liftoff · 33 Raptors' : c < C_SEP - .012 ? 'Climbing to orbit' : c < .535 ? 'Hot staging' : c < .6 ? 'Booster boostback' : c < .64 ? 'Coasting in low Earth orbit' : c < .82 ? 'Re-entry · belly flop' : boosterAlt(c) > 5.2 ? 'Grid fins steering' : boosterAlt(c) > 1.6 ? 'Landing burn · 13 engines' : boosterAlt(c) > .02 ? 'Final burn · 3 engines' : c < .9965 ? 'Booster caught at KUL' : c < .9995 ? 'Ship landing burn at SIN' : 'Both stages home'; })() : u < .02 ? 'Boarding at KUL' : u < .2 ? 'Taking off' : u < .6 ? 'Above the clouds' : u < .9 ? 'Descending into Singapore' : u < .99 ? 'Touchdown' : 'Landed at SIN'; }
   document.documentElement.style.setProperty('--a', `oklch(.58 .17 ${st.hue.toFixed(1)})`);
   document.getElementById('sky').style.background = `linear-gradient(rgb(${st.sky[0].map(Math.round)}),rgb(${st.sky[1].map(Math.round)}))`;
@@ -956,21 +961,37 @@ addEventListener('resize', resize, { signal: _sig }); resize();
 const hangarEl = document.getElementById('hangar'), passEl = document.querySelector('.pass');
 document.getElementById('chgBtn').addEventListener('click', () => { const sec = document.getElementById('causeway'), top = scrollY + sec.getBoundingClientRect().top; scrollTo({ top: top + .08*(sec.offsetHeight - innerHeight), behavior: RM ? 'auto' : 'smooth' }); }, { signal: _sig });
 const UO = { az: 0, el: 0, z: 1, taz: 0, tel: 0, tz: 1 }, cwSec = document.getElementById('causeway'), cwPin = cwSec.querySelector('.pin');
-// Auto-launch (Starship): scrolls the flight for the visitor from the pad to touchdown (AUTO_END of the section),
-// then hands scrolling back. The Stop pill, or any wheel / touch / key / click, stops it immediately.
-// Two legs: a quick ~2.4s lead-in from the picker to ignition (AUTO_IGN), then the flight itself at a watchable pace.
-const AUTO_IGN = .22, AUTO_END = .88, AUTO_LEAD_MS = 2400, AUTO_MS = 34000; let autoFl = null;
-function autoStop(done = false) { if (!autoFl) return; autoFl = null; document.documentElement.classList.remove('auto-flight');
+// Auto-launch (any aircraft): scrolls the flight for the visitor to touchdown (AUTO_END of the section), then hands
+// scrolling back. The Stop pill, or any wheel / touch / key / click, stops it immediately.
+// Two legs: a short lead-in from the picker to the start of the flight (ign), then the flight at a watchable pace.
+// Starship's section is ~3.6× longer (3100vh vs 860vh), so the shorter flights scroll more slowly and take less time.
+const AUTO_END = .88, AUTO_PACE = { star: { ign: .22, lead: 2400, flight: 34000 }, plane: { ign: .19, lead: 1600, flight: 24000 } }; let autoFl = null;
+function autoStop(done = false) { if (!autoFl) return;
+  const aircraft = plane.userData.type, pct = Math.round(100*clamp((scrollY - autoFl.from)/(autoFl.to - autoFl.from)));
+  if (done) { flightStart(); flightDone(); }
+  track(done ? 'auto_launch_complete' : 'auto_launch_stop', done ? { aircraft } : { aircraft, progress: pct });
+  autoFl = null; document.documentElement.classList.remove('auto-flight');
   if (done) { autoDoneY = scrollY; document.documentElement.classList.add('auto-landed'); _st(autoDoneHide, 9000); } }
 // "Landed · scroll to continue" hint after a completed auto-launch; fades once the visitor scrolls on (or after 9s)
 let autoDoneY = -1;
 function autoDoneHide() { autoDoneY = -1; document.documentElement.classList.remove('auto-landed'); }
+// One flight = takeoff (u > .02) … landing (u > .985). Scrolling back to the gate (u < .005) arms the next flight.
+// mode = how the flight started ('auto' = Auto-launch, 'scroll' = flown by scrolling); the landing reports the same mode.
+const FL = { started: false, done: false, mode: 'scroll' };
+function flightStart() { if (FL.started) return; FL.started = true; FL.mode = autoFl ? 'auto' : 'scroll'; track('flight_start', { aircraft: plane.userData.type, mode: FL.mode }); }
+function flightDone() { if (!FL.started || FL.done) return; FL.done = true; track('flight_complete', { aircraft: plane.userData.type, mode: FL.mode }); }
+function trackFlight(u) {
+  if (u < .005) { FL.started = FL.done = false; return; }
+  if (u > .02) flightStart();
+  if (u > .985) flightDone();
+}
 function autoStart() {
-  if (!isStar()) return;
+  const P = isStar() ? AUTO_PACE.star : AUTO_PACE.plane;
   const top = scrollY + cwSec.getBoundingClientRect().top, span = cwSec.offsetHeight - innerHeight, from = Math.max(scrollY, top + .03*span), to = top + AUTO_END*span;
   if (to - from < 10) return;
-  const ign = Math.max(from, top + AUTO_IGN*span), dA = AUTO_LEAD_MS*(ign - from)/((AUTO_IGN - .03)*span), dB = AUTO_MS*(to - ign)/((AUTO_END - AUTO_IGN)*span);
+  const ign = Math.max(from, top + P.ign*span), dA = P.lead*(ign - from)/((P.ign - .03)*span), dB = P.flight*(to - ign)/((AUTO_END - P.ign)*span);
   autoFl = { from, ign, to, t0: performance.now(), dA, dB, dur: dA + dB }; document.documentElement.classList.add('auto-flight');
+  track('auto_launch_start', { aircraft: plane.userData.type });
 }
 document.getElementById('hLaunch').addEventListener('click', autoStart, { signal: _sig });
 document.getElementById('autoStop').addEventListener('click', () => autoStop(), { signal: _sig });

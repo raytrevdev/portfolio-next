@@ -65,3 +65,22 @@ public/                     # favicon, resume.pdf
 ```
 
 `lib/three/engine.ts` is a 1:1 port of the design prototype's script, kept intact for motion parity. Only the mount/unmount lifecycle, the label font and the removed GLB export differ.
+
+---
+
+## Analytics
+
+Google Analytics 4 (`G-JJ5YG883HM`). Set `NEXT_PUBLIC_GTM_ID` (e.g. `GTM-XXXXXXX`) in the Netlify environment (and `.env.local` for local testing) to load **Google Tag Manager** instead. GA4 is then configured inside GTM and the direct `gtag.js` snippet is not loaded. Without it, events go straight to GA4.
+
+The city pushes these events to `dataLayer` (`{ event, ...params }`):
+
+| Event | When | Params |
+|---|---|---|
+| `aircraft_select` | Visitor picks a vehicle (not the default on load) | `aircraft` |
+| `flight_start` | The flight takes off | `aircraft`, `mode` (`auto` \| `scroll`) |
+| `flight_complete` | The flight lands | `aircraft`, `mode` |
+| `auto_launch_start` | Auto-launch pressed | `aircraft` |
+| `auto_launch_stop` | Auto-launch stopped before landing | `aircraft`, `progress` (0–100) |
+| `auto_launch_complete` | Auto-launch reached touchdown | `aircraft` |
+
+`aircraft` is one of `airliner`, `jumbo`, `jet`, `prop`, `paper`, `ufo`, `starship`.
