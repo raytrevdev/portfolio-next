@@ -14,7 +14,7 @@ a{color:var(--ink);text-decoration:none}a:hover{color:var(--a)}
 .pill.brand i{width:9px;height:9px;border-radius:2px;background:var(--a);transform:rotate(45deg)}
 .nav .sp{flex:1}
 .pill.dark{background:var(--ink);color:#fff}.pill.dark:hover{background:var(--a);color:#fff}
-.tl{position:fixed;left:4vw;right:4vw;bottom:18px;z-index:10;display:grid;grid-template-columns:repeat(9,minmax(0,1fr));padding:12px 18px 10px;border-radius:14px;background:rgba(255,255,255,.86);backdrop-filter:blur(10px);box-shadow:0 8px 24px -14px rgba(20,20,30,.3)}
+.tl{position:fixed;left:4vw;right:4vw;bottom:18px;z-index:10;display:grid;grid-template-columns:repeat(10,minmax(0,1fr));padding:12px 18px 10px;border-radius:14px;background:rgba(255,255,255,.86);backdrop-filter:blur(10px);box-shadow:0 8px 24px -14px rgba(20,20,30,.3)}
 .tl .fill{position:absolute;left:18px;right:18px;top:0;height:2px}.tl .fill i{display:block;height:100%;width:0;background:var(--a);border-radius:2px}
 .tl a{font-family:var(--mono);font-size:11px;color:var(--mut);display:flex;flex-direction:column;gap:1px;transition:color .3s}
 .tl a b{font-family:var(--disp);font-size:13px;font-weight:600;color:inherit}
@@ -197,3 +197,11 @@ html.auto-landed .chg{opacity:0;pointer-events:none}
 #causeway .pass.mini .auto-stop{left:16px}
 @media (max-width:860px){.auto-stop,.auto-done{bottom:auto;top:-15px;left:16px}}
 @media (prefers-reduced-motion: reduce){.auto-done span{animation:none}}
+/* Plot 00 · Roots — epilogue that crosses to the family land (/roots); the bridge overlay itself is styled inline */
+@view-transition{navigation:auto}
+#roots .trio b{color:var(--pa)}
+#roots .btn.pri{background:#1a1712;color:#f3ede1}#roots .btn.pri:hover{background:var(--pa);color:#1a1712}
+#roots .btn span{transition:transform .3s}#roots .btn:hover span{transform:translateX(3px)}
+@media (max-width:860px){#roots .btns .btn{width:100%;justify-content:center;min-height:44px}#roots .fwhint{font-size:10px}}
+/* coming back from /roots: start dark so the clay page colour never flashes before the night city */
+html.from-roots,html.from-roots #sky{background:#0d0c0a}

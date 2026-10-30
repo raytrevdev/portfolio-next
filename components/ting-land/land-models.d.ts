@@ -1,0 +1,21 @@
+/* Loose types for the procedural model library (land-models.js). All sizes are real-world metres, y-up. */
+type Rng = () => number;
+type Obj3D = any;
+export const PLOT: number;
+export const HALF: number;
+export function rng(seed?: number): Rng;
+export function makeMaterials(): Record<string, any>;
+export function heightAt(x: number, z: number): number;
+export function buildLand(M: Record<string, any>): Obj3D;
+export function bananaPlant(M: Record<string, any>, r?: Rng, o?: Record<string, unknown>): Obj3D;
+export function papayaTree(M: Record<string, any>, r?: Rng, o?: Record<string, unknown>): Obj3D;
+export function rubberTree(M: Record<string, any>, r?: Rng, o?: Record<string, unknown>): Obj3D;
+export function oilPalm(M: Record<string, any>, r?: Rng, o?: Record<string, unknown>): Obj3D;
+type Specimen = { group: Obj3D; setDisplay(on: boolean): void; apply(e: number): void; [k: string]: any };
+export function bananaSpecimen(M: Record<string, any>): Specimen;
+export function papayaSpecimen(M: Record<string, any>): Specimen;
+export function rubberSpecimen(M: Record<string, any>): Specimen;
+export function ffbSpecimen(M: Record<string, any>): Specimen;
+export function palmFruitSpecimen(M: Record<string, any>): Specimen;
+export function buildWorld(M: Record<string, any>): any;
+export function texturesReady(): Promise<unknown>;

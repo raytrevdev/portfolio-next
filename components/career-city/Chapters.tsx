@@ -172,6 +172,36 @@ export default function Chapters() {
           </div>
         </div>
       </section>
+
+      {/* Epilogue: the city's lights go out and the story crosses to the family land (/roots), 93 years earlier. */}
+      <section className="ch" id="roots" data-t="Roots" data-y="1933" style={{ height: '200vh' }}>
+        <div className="pin">
+          <div className="plac" style={pa('oklch(.62 .11 92)')}>
+            <div className="row"><b>Plot 00 · Where it started</b><span>Sitiawan, Perak · 1933</span></div>
+            <h2>Before the city, there was a plot.</h2>
+            <p style={{ marginTop: 10 }}>Long before any of this was built, my family was working one piece of land in Sitiawan, Perak: banana and papaya first, then rubber, then oil palm.</p>
+            <div className="trio">
+              <div><b className="count" data-to="93">93</b><span>Years</span></div>
+              <div><b className="count" data-to="3">3</b><span>Crops</span></div>
+              <div><b className="count" data-to="1">1</b><span>Plot</span></div>
+            </div>
+            <div className="btns">
+              <a
+                className="btn pri"
+                href="/roots?from=city"
+                data-bridge="roots_open"
+                data-bridge-prefetch=""
+                data-from-year="2026"
+                data-to-year="1933"
+                data-label="Singapore → Sitiawan, Perak"
+              >
+                Walk the family land <span aria-hidden="true">→</span>
+              </a>
+            </div>
+            <p className="fwhint">A separate 3D story · about 3 minutes · best on desktop</p>
+          </div>
+        </div>
+      </section>
     </main>
   );
 }

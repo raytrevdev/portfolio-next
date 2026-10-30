@@ -259,6 +259,7 @@ const rkWarp = ci => { let lo = 0, hi = RKW.length - 1; while (hi - lo > 1) { co
 const rkC = u => { if (u < .07) return 0; const x = Math.min(1, (u - .07)/.9); return rkWarp(x < .45 ? .5*Math.pow(x/.45, 1.6) : 1 - .5*Math.pow((1 - x)/.55, 2.3)); };
 const rocketPoint = (u, out) => rkPos(rkC(u), out);
 const isStar = () => plane.userData.type === 'starship';
+const RS = 1.35, RW = .03, RY0 = .045*RS, isCar = () => plane.userData.type === 'roadster'; // Roadster scale; body-centre height above the ground
 M.satBody = std('satellite_foil', 0xd8b25a, .35, .8);
 const cellTex = (bg, ln) => { const c = document.createElement('canvas'); c.width = 128; c.height = 256; const g = c.getContext('2d'); g.fillStyle = bg; g.fillRect(0, 0, 128, 256); g.strokeStyle = ln; g.lineWidth = 2;
   for (let x = 0; x <= 128; x += 16) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, 256); g.stroke(); } for (let y = 0; y <= 256; y += 16) { g.beginPath(); g.moveTo(0, y); g.lineTo(128, y); g.stroke(); }
@@ -524,6 +525,90 @@ const PLANES = {
     const o = new THREE.Mesh(geo, M.paper); o.name = 'paper_plane'; o.castShadow = true; g.add(o);
     const fold = new THREE.Mesh(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute([...N, -.2, .019, -.3, -.1, .009, -.3, ...N, .1, .009, -.3, .2, .019, -.3], 3)), new THREE.MeshBasicMaterial({ color: oklch(.6, .17, 25), side: THREE.DoubleSide }));
     fold.geometry.computeVertexNormals(); fold.name = 'paper_stripe'; fold.position.y = .004; g.add(fold);
+  },
+  // Roadster (current design): smooth lofted body (superellipse sections with tumblehome, sculpted fenders and wheel
+  // arches), teardrop glass canopy, clear-coat paint, wrap-around light bars, airfoil wing on swan-neck pylons, 10-spoke
+  // rims, cold-gas thrusters. Origin = body centre (RY0 above the ground) so the backflip turns about the middle of the car.
+  roadster(g) {
+    const phys = (name, color, metal, rough, extra = {}) => new THREE.MeshPhysicalMaterial({ name, color, metalness: metal, roughness: rough, clearcoat: 1, clearcoatRoughness: .07, ...extra });
+    M.rdBody = M.rdBody || phys('roadster_body', 0xe6e8eb, .55, .26);
+    M.rdGlass = M.rdGlass || phys('roadster_canopy', 0x0c0f14, .35, .05);
+    M.rdUnder = M.rdUnder || std('roadster_underbody', 0x17191c, .6, .25);
+    M.rdCarbon = M.rdCarbon || phys('roadster_wing', 0x26292e, .4, .3);
+    M.rdTire = M.rdTire || std('roadster_tire', 0x141516, .82);
+    M.rdRim = M.rdRim || std('roadster_rim', 0x5d6168, .22, .92);
+    M.rdHead = M.rdHead || std('roadster_headlight_bar', 0xffffff, .3, 0, { emissive: 0xffffff, emissiveIntensity: 2.2 });
+    M.rdTail = M.rdTail || std('roadster_taillight_bar', 0xff2a2a, .3, 0, { emissive: 0xff2020, emissiveIntensity: 2.8 });
+    const Y = -RY0/RS; g.scale.setScalar(RS);
+    // monotone-ish cubic through [z, value] keys (z descending, nose -> tail)
+    const curve = K => z => { const n = K.length; if (z >= K[0][0]) return K[0][1]; if (z <= K[n - 1][0]) return K[n - 1][1];
+      let i = 0; while (K[i + 1][0] > z) i++;
+      const sl = j => j <= 0 ? (K[1][1] - K[0][1])/(K[1][0] - K[0][0]) : j >= n - 1 ? (K[n - 1][1] - K[n - 2][1])/(K[n - 1][0] - K[n - 2][0]) : (K[j + 1][1] - K[j - 1][1])/(K[j + 1][0] - K[j - 1][0]);
+      const [z0, v0] = K[i], [z1, v1] = K[i + 1], h = z1 - z0, t = (z - z0)/h, t2 = t*t, t3 = t2*t;
+      return (2*t3 - 3*t2 + 1)*v0 + (t3 - 2*t2 + t)*sl(i)*h + (-2*t3 + 3*t2)*v1 + (t3 - t2)*sl(i + 1)*h; };
+    const Z0 = .238, Z1 = -.234;
+    const hw = curve([[Z0, .028], [.228, .058], [.2, .082], [.15, .097], [.12, .101], [.07, .097], [0, .094], [-.07, .099], [-.13, .106], [-.18, .103], [-.215, .094], [Z1, .078]]);
+    const top = curve([[Z0, .018], [.226, .028], [.19, .04], [.14, .049], [.08, .053], [0, .056], [-.1, .06], [-.17, .064], [-.21, .064], [Z1, .057]]);
+    const bot = curve([[Z0, .015], [.222, .012], [.16, .01], [-.16, .01], [-.21, .014], [Z1, .026]]);
+    const nEx = curve([[Z0, 2.2], [.2, 3], [-.2, 3.2], [Z1, 2.6]]);
+    const WZ = [.135, -.135], CY = RW, RA = RW + .006, RF = RW + .018;
+    const arch = z => { for (const zw of WZ) { const d = z - zw; if (Math.abs(d) < RA) return CY + Math.sqrt(RA*RA - d*d); } return -1; };
+    const fend = z => { for (const zw of WZ) { const d = z - zw; if (Math.abs(d) < RF) return CY + Math.sqrt(RF*RF - d*d) - .002; } return -1; };
+    const ss = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a)/(b - a))); return t*t*(3 - 2*t); };
+    // body loft: NZ rings x NA around (theta from the bottom centre), plus a centre vertex at each end
+    const NZ = 56, NA = 36, P = [], EY = [];
+    for (let i = 0; i < NZ; i++) { const z = Z0 + (Z1 - Z0)*(1 - Math.cos(Math.PI*i/(NZ - 1)))/2, w = hw(z), tp = top(z), bt = bot(z), mid = (tp + bt)/2, half = (tp - bt)/2, n = nEx(z), a = arch(z), f = fend(z);
+      for (let j = 0; j < NA; j++) { const th = -Math.PI/2 + 2*Math.PI*j/NA, c = Math.cos(th), sn = Math.sin(th);
+        const ex = Math.sign(c)*Math.abs(c)**(2/n), ey = Math.sign(sn)*Math.abs(sn)**(2/n);
+        let x = w*ex*(1 - .17*Math.max(0, ey)**2), y = mid + half*ey; const fw = ss(.06, .09, Math.abs(x));
+        if (f > 0 && ey >= 0) y += (Math.max(y, f - (1 - ey)*.008) - y)*fw;            // fender over the wheel
+        if (a > 0 && ey < 0) y += (Math.max(y, a + .006*(ey + 1)) - y)*fw;           // wheel arch: lift the lower skin above the tyre
+        P.push(x, y + Y, z); EY.push(ey); } }
+    const cN = P.length/3; P.push(0, (top(Z0) + bot(Z0))/2 + Y, Z0 + .002); const cT = cN + 1; P.push(0, (top(Z1) + bot(Z1))/2 + Y, Z1 - .002);
+    const idx = [[], []], id = (i, j) => i*NA + (j % NA);
+    for (let i = 0; i < NZ - 1; i++) for (let j = 0; j < NA; j++) { const a = id(i, j), b = id(i + 1, j), c = id(i + 1, j + 1), d = id(i, j + 1), low = EY[a] < -.55 && EY[d] < -.55 ? 1 : 0;
+      idx[low].push(a, b, c, a, c, d); }
+    for (let j = 0; j < NA; j++) { idx[0].push(cN, id(0, j), id(0, j + 1)); idx[0].push(cT, id(NZ - 1, j + 1), id(NZ - 1, j)); }
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
+    geo.setIndex([...idx[0], ...idx[1]]); geo.addGroup(0, idx[0].length, 0); geo.addGroup(idx[0].length, idx[1].length, 1); geo.computeVertexNormals();
+    const body = new THREE.Mesh(geo, [M.rdBody, M.rdUnder]); body.name = 'roadster_body'; body.castShadow = true; body.receiveShadow = true; g.add(body);
+    // teardrop canopy sunk slightly into the body
+    { const C0 = .088, C1 = -.138, CN = 30, CA = 18, Q = [];
+      for (let i = 0; i < CN; i++) { const t = i/(CN - 1), z = C0 + (C1 - C0)*t, pk = .42, u = t < pk ? t/pk : (1 - t)/(1 - pk), bump = Math.sin(Math.PI/2*Math.min(1, u*1.15));
+        const h = .03*Math.pow(bump, t < pk ? .55 : .8), w = .062*Math.pow(bump, .35) + .002, base = top(z) - .008;
+        for (let j = 0; j <= CA; j++) { const th = Math.PI*j/CA, c = Math.cos(th), sn = Math.sin(th); Q.push(w*Math.sign(c)*Math.abs(c)**.8, base + (h + .008)*sn**1.4 + Y, z); } }
+      const ci = []; for (let i = 0; i < CN - 1; i++) for (let j = 0; j < CA; j++) { const a = i*(CA + 1) + j, b = a + CA + 1; ci.push(a, b, b + 1, a, b + 1, a + 1); }
+      const cg = new THREE.BufferGeometry(); cg.setAttribute('position', new THREE.Float32BufferAttribute(Q, 3)); cg.setIndex(ci); cg.computeVertexNormals();
+      const canopy = new THREE.Mesh(cg, M.rdGlass); canopy.name = 'roadster_canopy'; canopy.castShadow = true; g.add(canopy); }
+    // wrap-around light bars following the nose and tail plan shape
+    const bar = (name, m, y, z0, wx, back) => { const pts = []; for (let k = 0; k <= 16; k++) { const x = -wx + 2*wx*k/16, zz = z0 - back*(x/wx)**2; pts.push(new THREE.Vector3(x, y + Y, zz)); }
+      const o = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 32, .0022, 6), m); o.name = name; g.add(o); };
+    bar('roadster_headlight_bar', M.rdHead, .022, .232, .072, .05);
+    bar('roadster_taillight_bar', M.rdTail, .052, -.231, .086, -.03);
+    pbox(g, 'roadster_diffuser', .15, .016, .02, M.rdUnder, 0, .022 + Y, -.222);
+    // airfoil wing on swan-neck pylons (they hang it from above)
+    { const af = new THREE.Shape(); af.moveTo(.028, 0); af.bezierCurveTo(.02, .006, -.01, .007, -.028, .002); af.lineTo(-.028, 0); af.bezierCurveTo(-.01, -.002, .02, -.002, .028, 0);
+      const wg = new THREE.ExtrudeGeometry(af, { depth: .2, bevelEnabled: false, curveSegments: 10 }).translate(0, 0, -.1).rotateY(Math.PI/2);
+      const wing = new THREE.Mesh(wg, M.rdCarbon); wing.name = 'roadster_wing'; wing.position.set(0, .112 + Y, -.198); wing.rotation.x = -.1; wing.castShadow = true; g.add(wing);
+      [-1, 1].forEach(sd => { const ep = pbox(g, `roadster_wing_endplate_${sd}`, .003, .018, .05, M.rdCarbon, sd*.1, .11 + Y, -.198); ep.castShadow = true;
+        const neck = new THREE.CatmullRomCurve3([[-.168, .062], [-.172, .09], [-.182, .118], [-.198, .124], [-.205, .118]].map(([z, y]) => new THREE.Vector3(sd*.055, y + Y, z)));
+        const pyl = new THREE.Mesh(new THREE.TubeGeometry(neck, 20, .0028, 6), M.rdCarbon); pyl.name = `roadster_wing_pylon_${sd}`; g.add(pyl); }); }
+    // wheels: tyre, 10-spoke rim, centre cap
+    const wheels = []; [[-1, 1], [1, 1], [-1, -1], [1, -1]].forEach(([sx, sz]) => { const wg = new THREE.Group(); wg.name = `roadster_wheel_${sx}_${sz}`; wg.position.set(sx*.088, RW + Y, sz*.135); g.add(wg);
+      const tyre = new THREE.Mesh(new THREE.TorusGeometry(RW - .0075, .0075, 10, 28).rotateY(Math.PI/2), M.rdTire); tyre.scale.set(1.5, 1, 1); tyre.castShadow = true; wg.add(tyre);
+      const disc = new THREE.Mesh(new THREE.CylinderGeometry(RW - .012, RW - .012, .006, 24).rotateZ(Math.PI/2), M.rdUnder); disc.position.x = -sx*.003; wg.add(disc);
+      for (let k = 0; k < 10; k++) { const sp = pbox(wg, `roadster_spoke_${k}`, .003, .0024, RW - .012, M.rdRim, sx*.006, 0, 0); sp.geometry.translate(0, 0, (RW - .012)/2); sp.rotation.x = k*Math.PI/5; }
+      const rimLip = new THREE.Mesh(new THREE.TorusGeometry(RW - .0125, .0018, 6, 28).rotateY(Math.PI/2), M.rdRim); rimLip.position.x = sx*.006; wg.add(rimLip);
+      const capM = new THREE.Mesh(new THREE.CylinderGeometry(.006, .006, .004, 12).rotateZ(Math.PI/2), M.rdRim); capM.position.x = sx*.007; wg.add(capM);
+      wheels.push(wg); });
+    // cold-gas jets (cones, tip at the nozzle): rear boost, four lift jets underneath, two steering jets per side
+    const jetMat = () => new THREE.MeshBasicMaterial({ color: 0x7fcfff, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide });
+    M.rdJetR = jetMat(); M.rdJetD = jetMat(); M.rdJetS = jetMat();
+    const jet = (name, r, h, m, x, y, z, rx, rz) => { const o = new THREE.Mesh(new THREE.ConeGeometry(r, h, 14, 1, true).translate(0, -h/2, 0), m); o.name = name; o.position.set(x, y + Y, z); o.rotation.set(rx, 0, rz); o.visible = false; g.add(o); return o; };
+    const jets = { rear: [-.06, -.02, .02, .06].map((x, i) => jet(`roadster_jet_rear_${i}`, .014, .16, M.rdJetR, x, .026, -.23, Math.PI/2, 0)),
+      down: [[-.07, .12], [.07, .12], [-.07, -.12], [.07, -.12]].map(([x, z], i) => jet(`roadster_jet_lift_${i}`, .02, .14, M.rdJetD, x, .012, z, 0, 0)),
+      side: [-1, 1].flatMap(sd => [.1, -.1].map((z, i) => Object.assign(jet(`roadster_jet_side_${sd}_${i}`, .012, .09, M.rdJetS, sd*.104, .04, z, 0, sd*Math.PI/2), { sd }))) };
+    plane.userData.car = { wheels, jets };
   }
 };
 function setPlane(type, pop = true) {
@@ -531,7 +616,7 @@ function setPlane(type, pop = true) {
   { const sec = document.getElementById('causeway'), want = type === 'starship' ? (MOB ? '2500vh' : '3100vh') : (MOB ? '640vh' : '860vh');
     if (sec.style.height !== want) { const r = sec.getBoundingClientRect(), span0 = sec.offsetHeight - innerHeight, p = span0 > 0 ? Math.min(1, Math.max(0, -r.top/span0)) : 0, inside = r.top <= 0 && r.bottom >= innerHeight;
       sec.style.height = want; if (inside) { const top = scrollY + r.top; scrollTo(0, top + p*(sec.offsetHeight - innerHeight)); } } }
-  [...plane.children].forEach(c => plane.remove(c)); plane.userData.ufo = null; plane.userData.star = null;
+  [...plane.children].forEach(c => plane.remove(c)); plane.userData.ufo = null; plane.userData.star = null; plane.userData.car = null; plane.rotation.order = type === 'roadster' ? 'YXZ' : 'XYZ';
   const body = new THREE.Group(); body.name = 'airplane_' + type; plane.add(body);
   plane.userData.spin = PLANES[type](body) || null; plane.userData.type = type; plane.userData.pop = pop ? 0 : 1;
   try { localStorage.setItem('rt-plane', type); } catch (e) {}
@@ -541,7 +626,8 @@ function setPlane(type, pop = true) {
   [...document.getElementById('hDots').children].forEach((d, k) => d.classList.toggle('on', k === i));
 }
 const PLANE_LIST = [['airliner', 'Airliner', 'Twin-engine widebody'], ['jumbo', 'Jumbo', 'Four engines, upper deck'], ['jet', 'Private jet', 'Business class only'],
-  ['prop', 'Propeller', 'Low and slow'], ['paper', 'Paper plane', 'Folded at the desk'], ['ufo', 'UFO', 'Not from around here'], ['starship', 'Starship', 'Pad to pad, via the edge of space']];
+  ['prop', 'Propeller', 'Low and slow'], ['paper', 'Paper plane', 'Folded at the desk'], ['ufo', 'UFO', 'Not from around here'], ['starship', 'Starship', 'Pad to pad, via the edge of space'],
+  ['roadster', 'Roadster', 'Jumps the Straits on cold-gas thrusters']];
 { const dots = document.getElementById('hDots'); PLANE_LIST.forEach(([id, name]) => { const d = document.createElement('button'); d.type = 'button'; d.setAttribute('aria-label', name); d.onclick = () => setPlane(id); dots.appendChild(d); }); }
 const cyclePlane = dir => { const i = PLANE_LIST.findIndex(p => p[0] === plane.userData.type); setPlane(PLANE_LIST[(i + dir + PLANE_LIST.length) % PLANE_LIST.length][0]); };
 document.querySelectorAll('.h-car [data-dir]').forEach(b => b.addEventListener('click', () => cyclePlane(+b.dataset.dir), { signal: _sig }));
@@ -553,6 +639,44 @@ const FLIGHT = [[-.5,.4,.15],[-.5,.4,-2.6],[-.5,.95,-5.4],[-.1,2.8,-8.4],[1.4,5.
 const flight = new THREE.CatmullRomCurve3(FLIGHT, false, 'centripetal');
 const HEAD = []; { let prev = null; for (let i = 0; i <= 400; i++) { const t = flight.getTangentAt(i/400); let a = Math.atan2(t.x, t.z)*180/Math.PI; if (prev !== null) { while (a - prev > 180) a -= 360; while (a - prev < -180) a += 360; } HEAD.push(a); prev = a; } }
 const headAt = u => { const f = clamp(u)*400, i = Math.min(399, Math.floor(f)); return HEAD[i] + (HEAD[i+1] - HEAD[i])*(f - i); };
+// Roadster route: launch-mode run down the KUL runway -> cold-gas jump off the coast (backflip on the way up, near-hover
+// at the apex, thruster-steered turn) -> touchdown on the SIN runway. Ground track = three curves (run, air, roll-out);
+// the timing keeps horizontal speed continuous at take-off and touchdown, and slows the air phase around the apex.
+const RD = (() => { const C = pts => new THREE.CatmullRomCurve3(pts.map(([x, z]) => new THREE.Vector3(x, 0, z)), false, 'centripetal');
+  const A = C([[-.5, .15], [-.5, -1.4], [-.44, -2.4], [-.2, -3.05], [.05, -3.35]]);
+  const R = C([[.05, -3.35], [.7, -4.5], [1.45, -5.9], [2.2, -6.8], [2.75, -6.4], [2.82, -5.2]]);
+  const Bc = C([[2.82, -5.2], [2.8, -3.8], [2.8, -2.1]]);
+  const LA = A.getLength(), LR = R.getLength(), LB = Bc.getLength(), c = .7, V = 2*LA + 2*LB + (1 + c)*LR;
+  return { A, R, Bc, LA, LR, LB, c, H: 1.9, TA: 2*LA/V, TR: (1 + c)*LR/V, TB: 2*LB/V }; })();
+const _rdT = new THREE.Vector3();
+function rdAt(u, out) { u = clamp(u); let ph, k, s, cv, d;
+  if (u < RD.TA) { ph = 0; k = u/RD.TA; s = k*k; cv = RD.A; d = s*RD.LA; }
+  else if (u < RD.TA + RD.TR) { ph = 1; k = (u - RD.TA)/RD.TR; s = k + RD.c*Math.sin(2*Math.PI*k)/(2*Math.PI); cv = RD.R; d = RD.LA + s*RD.LR; }
+  else { ph = 2; k = Math.min(1, (u - RD.TA - RD.TR)/RD.TB); s = 1 - (1 - k)**2; cv = RD.Bc; d = RD.LA + RD.LR + s*RD.LB; }
+  s = clamp(s); cv.getPointAt(s, out); cv.getTangentAt(s, _rdT); out.y = B + RY0 + (ph === 1 ? RD.H*4*s*(1 - s) : 0);
+  return { ph, k, s, d, yaw: Math.atan2(_rdT.x, _rdT.z) }; }
+const RHEAD = []; // unwrapped heading table, built on first use (clamp/sm are defined further down)
+const carHead = u => { if (!RHEAD.length) { const tv = new THREE.Vector3(); let prev = null; for (let i = 0; i <= 400; i++) { let a = rdAt(i/400, tv).yaw*180/Math.PI;
+    if (prev !== null) { while (a - prev > 180) a -= 360; while (a - prev < -180) a += 360; } RHEAD.push(a); prev = a; } }
+  const f = clamp(u)*400, i = Math.min(399, Math.floor(f)); return RHEAD[i] + (RHEAD[i+1] - RHEAD[i])*(f - i); };
+function carPose(u, now, hg) {
+  const car = plane.userData.car, r = rdAt(u, _fp), w = RM ? 0 : 1; let pitch = 0, roll = 0, turn = 0;
+  if (r.ph === 0) pitch = -.05*sm(.05, .3, r.k)*(1 - sm(.85, 1, r.k)); // squat under launch-mode acceleration
+  else if (r.ph === 1) { const lv = sm(0, .06, r.k)*(1 - sm(.8, .95, r.k)); // level out for lift-off and touchdown
+    pitch = -Math.atan(4*RD.H*(1 - 2*r.s)/RD.LR)*.6*lv - Math.PI*2*sm(.12, .42, r.k); // nose follows the arc + one backflip
+    turn = carHead(Math.min(1, u + .006)) - carHead(Math.max(0, u - .006)); roll = clamp(-turn*.035, -.6, .6)*lv; }
+  else { const b = sm(0, .05, r.k)*(1 - sm(.05, .2, r.k)); _fp.y -= .014*b; pitch = .06*b; } // touchdown: suspension compresses, nose dips
+  plane.position.copy(_fp); plane.rotation.set(pitch, r.yaw + Math.sin(now/1100)*.9*hg*w, roll);
+  car.wheels.forEach(wg => wg.rotation.x = r.d/(RW*RS));
+  const fl = i => .8 + .2*Math.sin(now/23 + i*1.7)*w, k = r.k, air = r.ph === 1;
+  const aR = r.ph === 0 ? sm(.75, .95, k) : air ? 1 - sm(.06, .14, k) : 0;
+  const aD = air ? Math.max(1 - sm(.08, .16, k), .55*sm(.36, .44, k)*(1 - sm(.56, .64, k)), sm(.84, .93, k)) : r.ph === 2 ? 1 - sm(0, .05, k) : 0;
+  const aS = air ? sm(.46, .54, k)*(1 - sm(.86, .94, k)) : 0;
+  M.rdJetR.opacity = .7*aR; M.rdJetD.opacity = .6*aD; M.rdJetS.opacity = .7*aS;
+  car.jets.rear.forEach((o, i) => { o.visible = aR > .02; o.scale.set(1, (.5 + .7*aR)*fl(i), 1); });
+  car.jets.down.forEach((o, i) => { o.visible = aD > .02; o.scale.set(1, (.4 + .8*aD)*fl(i + 4), 1); });
+  car.jets.side.forEach((o, i) => { const outer = o.sd*turn < 0 ? 1 : .45; o.visible = aS > .02; o.scale.set(outer, (.4 + .8*aS)*outer*fl(i + 8), outer); });
+}
 
 const PLOTS = [[-6.4, 3.4], [-6.2, -2.8], [-2.7, -4.3], [-2.5, 1.9], [6.9, -4.0], [4.3, 4.6], [4.8, 0]];
 const NODES = [PLOTS[0], PLOTS[1], PLOTS[2], PLOTS[3], [-.5, .75], [3.15, -1.45], PLOTS[4], PLOTS[5], PLOTS[4], PLOTS[6]];
@@ -754,17 +878,17 @@ function updateAmbient(dt, c) {
   CARS.forEach(o => { o.u = (o.u + o.dir*o.sp*dt*k/o.len + 1) % 1; o.cv.getPointAt(o.u, _cp); o.cv.getTangentAt(o.u, _ct); const ln = .062*o.dir;
     o.g.position.set(_cp.x + _ct.z*ln, B + .016, _cp.z - _ct.x*ln); o.g.rotation.y = Math.atan2(_ct.x*o.dir, _ct.z*o.dir);
     const s = sm(0, .035, o.u)*(1 - sm(.965, 1, o.u)); o.g.scale.setScalar(Math.max(.001, s)); o.g.visible = s > .01; });
-  M.headlight.emissiveIntensity = .1 + 3.5*nt; M.taillight.emissiveIntensity = 2.5*nt;
+  M.headlight.emissiveIntensity = (.1 + 3.5*nt)*(1 - c.dark); M.taillight.emissiveIntensity = 2.5*nt*(1 - c.dark);
   BOATS.forEach((o, i) => { o.u = (o.u + o.sp*dt*k/14.6) % 1; const s = sm(0, .06, o.u)*(1 - sm(.94, 1, o.u));
     o.g.position.set(o.x + Math.sin(ambT*.4 + i)*.03, .2 + Math.sin(ambT*1.6 + i*2)*.004, (o.u*14.6 - 7.3)*o.dir);
     o.g.rotation.set(Math.sin(ambT*1.3 + i)*.03, o.dir > 0 ? 0 : Math.PI, Math.sin(ambT*1.1 + i*1.7)*.04); o.g.scale.setScalar(Math.max(.001, s)); o.g.visible = s > .01; });
   const bv = (1 - sm(.15, .5, nt))*(1 - sm(.02, .1, c.space))*(1 - sm(.05, .2, c.cloud)); birds.visible = bv > .01; birds.scale.setScalar(Math.max(.001, bv));
   if (birds.visible) { const a = ambT*.07; birds.position.set(.6 + Math.sin(a)*6.2, 2.9 + Math.sin(ambT*.3)*.25, Math.cos(a)*4.6); birds.rotation.y = Math.atan2(Math.cos(a)*6.2, -Math.sin(a)*4.6);
     BIRDS.forEach(b => { const f = Math.sin(ambT*9 + b.ph)*.55*k + .1; b.w[0].rotation.z = -f; b.w[1].rotation.z = f; }); }
-  for (let j = 0; j < LAMPS.length; j++) { const lk = sm(.12 + .5*j/LAMPS.length, .22 + .5*j/LAMPS.length, nt);
+  for (let j = 0; j < LAMPS.length; j++) { const q = 1 - j/LAMPS.length, lk = sm(.12 + .5*j/LAMPS.length, .22 + .5*j/LAMPS.length, nt)*(1 - sm(.08 + .6*q, .2 + .6*q, c.dark));
     lampHead.setColorAt(j, _lc.copy(LAMP_OFF).lerp(LAMP_ON, lk)); lampPool.setColorAt(j, _lc.copy(BLACK).lerp(LAMP_ON, lk*.55)); }
   lampHead.instanceColor.needsUpdate = lampPool.instanceColor.needsUpdate = true; lampPool.visible = nt > .05;
-  reflMesh.visible = nt > .05; reflMesh.material.opacity = sm(.3, 1, nt)*.8;
+  reflMesh.visible = nt > .05; reflMesh.material.opacity = sm(.3, 1, nt)*.8*(1 - sm(0, .5, c.dark));
   if (reflMesh.visible) { REFL.forEach((r, j) => { _dm.position.set(r.x, .203, r.z); _dm.scale.set(r.w*(.85 + .15*Math.sin(ambT*2.2 + j*1.7)), 1, r.d*(.7 + .3*Math.sin(ambT*3.1 + j))); _dm.updateMatrix(); reflMesh.setMatrixAt(j, _dm.matrix); }); reflMesh.instanceMatrix.needsUpdate = true; }
   M.water.color.copy(_wc).lerp(_wn, nt); M.water.roughness = .25 - .17*nt;
 }
@@ -846,11 +970,11 @@ const sm = (a, b, x) => { const t = clamp((x - a)/(b - a)); return t*t*(3 - 2*t)
 const snap = x => Math.floor(x) + sm(.55, 1, x - Math.floor(x));
 const mix = (a, b, w) => typeof a === 'number' ? a + (b - a)*w : Array.isArray(a) ? a.map((v, i) => mix(v, b[i], w)) : Object.fromEntries(Object.keys(a).map(k => [k, mix(a[k], b[k], w)]));
 const backOut = x => x <= 0 ? 0 : 1 + 2.2*(x - 1)**3 + 1.2*(x - 1)**2;
-const SKY = [[[228,234,240],[244,241,236]], [[222,232,242],[245,242,236]], [[236,231,224],[246,241,232]], [[225,236,229],[244,243,236]], [[234,228,238],[245,241,238]], [[216,228,238],[244,236,226]], [[241,227,214],[248,239,229]], [[238,212,196],[246,230,214]], [[20,26,46],[52,46,72]]];
+const SKY = [[[228,234,240],[244,241,236]], [[222,232,242],[245,242,236]], [[236,231,224],[246,241,232]], [[225,236,229],[244,243,236]], [[234,228,238],[245,241,238]], [[216,228,238],[244,236,226]], [[241,227,214],[248,239,229]], [[238,212,196],[246,230,214]], [[20,26,46],[52,46,72]], [[20,26,46],[52,46,72]]];
 
 const _fp = new THREE.Vector3(), _ft = new THREE.Vector3(), _cb = new THREE.Vector3(), _cs = new THREE.Vector3();
 function S(s, p, t) {
-  const o = { cam: [35, 50, 30, 0, 0, .5, -.18, 0], grow: [0,0,0,0,0,0,0], focus: [0,0,0,0,0,0,0], explode: 0, act: 0, road: 0, puck: 0, night: 0, fly: s > 5 ? 1 : 0, cloud: 0, fog: 0, hangar: 0, space: 0, azure: s === 8 ? 0 : 1, sun: [40, 58], hue: 255, mz: 1, msy: 0, sky: SKY[s] };
+  const o = { cam: [35, 50, 30, 0, 0, .5, -.18, 0], grow: [0,0,0,0,0,0,0], focus: [0,0,0,0,0,0,0], explode: 0, act: 0, road: 0, puck: 0, night: 0, dark: 0, fly: s > 5 ? 1 : 0, cloud: 0, fog: 0, hangar: 0, space: 0, azure: s >= 8 ? 0 : 1, sun: [40, 58], hue: 255, mz: 1, msy: 0, sky: SKY[s] };
   const built = n => { for (let i = 0; i < n; i++) o.grow[i] = 1; };
   switch (s) {
     case 0: o.cam = [35 + Math.sin(t*.12)*6, 52 - p*10, 31 - p*5, .4, 0, .4, -.2, 0]; break;
@@ -862,12 +986,14 @@ function S(s, p, t) {
       o.hangar = sm(.015, .04, p)*(1 - sm(.12, .155, p));
       o.puck = 1 - sm(.015, .045, p) + sm(.93, .99, p); o.road = 3 + sm(0, .035, p) + sm(.9, .93, p);
       o.cloud = sm(.24, .32, p)*(1 - sm(.74, .86, p)); o.fog = sm(.34, .42, p)*(1 - sm(.6, .68, p));
-      const star = isStar(), sw = sm(.15, .23, p)*(1 - (star ? sm(.58, .7, p) : sm(.8, .9, p))); if (star) rocketPoint(u, _fp); else flight.getPointAt(u, _fp);
+      const star = isStar(), sw = sm(.15, .23, p)*(1 - (star ? sm(.58, .7, p) : sm(.8, .9, p))); const car = isCar(), rd = car ? rdAt(u, _fp) : null; if (star) rocketPoint(u, _fp); else if (!car) flight.getPointAt(u, _fp);
       const cS = star ? rkC(u) : 0, orb = star ? sm(.2, .32, cS)*(1 - sm(.64, .74, cS)) : sm(.36, .46, p)*(1 - sm(.56, .66, p));
       if (star) o.cloud *= 1 - sm(.25, .35, cS); // climb only: keep the belly-flop re-entry clear
+      if (car) o.cloud = o.fog = 0; // the Roadster stays well below the cloud deck
       const lc = [25 + u*80, 6, 10.5, -.5, 1.1 + (_fp.y - .35)*.6, -.25, 0, -.12];
       const ch = [40 + u*110, 6 + 12*sm(.25, .4, p)*(1 - sm(.6, .72, p)) - 4*orb, 6.5 + 5.5*orb, _fp.x, _fp.y + .8, _fp.z, 0, -.1];
-      const chase = star ? mix(lc, ch, sm(.13, .26, u)) : [headAt(u) - 150, 12 + 10*sm(.25, .4, p)*(1 - sm(.55, .7, p)), 2.9, _fp.x, _fp.y, _fp.z, 0, -.06];
+      const air = car && rd.ph === 1 ? sm(0, .25, rd.k)*(1 - sm(.8, 1, rd.k)) : 0;
+      const chase = star ? mix(lc, ch, sm(.13, .26, u)) : car ? [carHead(u) - 115, 13 + 10*air, 2.7 + 1.8*air, _fp.x, _fp.y, _fp.z, 0, -.06] : [headAt(u) - 150, 12 + 10*sm(.25, .4, p)*(1 - sm(.55, .7, p)), 2.9, _fp.x, _fp.y, _fp.z, 0, -.06];
       const hc = star ? [28 + Math.sin(t*.3)*18, 11, 4.4, -.5, 1.0, -.25, 0, -.05] : [28 + Math.sin(t*.3)*18, 15, 2.5, -.5, .42, .1, 0, -.05], arrive = mix([70, 22, 10.5, -.8, .8, -1.4, 0, .12], hc, sm(0, .035, p));
       const fixed = p < .5 ? arrive : star ? [12 + 10*sm(.6, 1, p), 15 - 3*sm(.6, 1, p), 11.5, 1.1, 1.1, -1.2, 0, -.06] : [60, 16, 8, 2.8, .6, -3.4, 0, -.06];
       o.cam = mix(fixed, chase, sw);
@@ -884,6 +1010,11 @@ function S(s, p, t) {
     case 7: { built(5); const a = sm(.45, .6, p); o.grow[5] = sm(0, .3, p); o.grow[6] = sm(.5, .8, p); o.focus[5] = 1 - a; o.focus[6] = a; o.puck = 1; o.road = 7 + a*2; o.hue = mix(HUES[5], HUES[6], a); o.sun = [165, 22];
       o.cam = [25 + p*20, 30, 11, mix(4.3, PLOTS[6][0], a), 1.2, mix(4.6, PLOTS[6][1], a), -.2, 0]; o.sun = [165, 22]; break; }
     case 8: built(7); o.night = 1; o.focus = [.8,.8,.8,.8,.8,.8,.8]; o.hue = 255; o.cam = [18 + p*36 + Math.sin(t*.1)*3, 50, 38, .8, 0, 0, .13, 0]; o.sun = [200, 25]; o.mz = 1.45; o.msy = .05; break;
+    // Plot 00 · Roots: the lights go out plot by plot (Singapore first, KL last) while the camera rises and drifts back
+    // over the KL plots, and the sky drops to the family land's black (#0d0c0a) for the crossing to /roots.
+    case 9: { built(7); const e = sm(0, .85, p); o.night = 1; o.dark = sm(.04, .9, p); o.focus = [.8,.8,.8,.8,.8,.8,.8]; o.hue = 255;
+      o.cam = mix([54 + Math.sin(t*.1)*3, 50, 38, .8, 0, 0, .13, 0], [100, 66, 50, PLOTS[0][0], 0, PLOTS[0][1], -.13, 0], e);
+      o.sun = [200, 25]; o.mz = 1.45; o.msy = .05; o.sky = mix(SKY[8], [[13,12,10],[13,12,10]], sm(.1, .9, p)); break; }
   }
   return o;
 }
@@ -933,7 +1064,7 @@ function target(t) {
   htrack.style.transform = `translateX(${-k*cw}px)`; hcards.forEach((c, i) => c.classList.toggle('on', i === Math.round(k)));
   projs.forEach((d, i) => d.classList.toggle('on', i === (ps[7] < .5 ? 0 : 1)));
   { const u = sm(.17, .92, ps[5]); trackFlight(u); passFill.style.width = u*100 + '%'; passDot.style.left = u*100 + '%'; km.textContent = Math.round(u*300);
-    passStage.textContent = isStar() ? (() => { const c = rkC(u); return u < .02 ? 'On the pad at KUL' : u < .07 ? 'Ignition' : c < .3 ? 'Liftoff · 33 Raptors' : c < C_SEP - .012 ? 'Climbing to orbit' : c < .535 ? 'Hot staging' : c < .6 ? 'Booster boostback' : c < .64 ? 'Coasting in low Earth orbit' : c < .82 ? 'Re-entry · belly flop' : boosterAlt(c) > 5.2 ? 'Grid fins steering' : boosterAlt(c) > 1.6 ? 'Landing burn · 13 engines' : boosterAlt(c) > .02 ? 'Final burn · 3 engines' : c < .9965 ? 'Booster caught at KUL' : c < .9995 ? 'Ship landing burn at SIN' : 'Both stages home'; })() : u < .02 ? 'Boarding at KUL' : u < .2 ? 'Taking off' : u < .6 ? 'Above the clouds' : u < .9 ? 'Descending into Singapore' : u < .99 ? 'Touchdown' : 'Landed at SIN'; }
+    passStage.textContent = isCar() ? (() => { const r = rdAt(u, _p); return u < .02 ? 'On the grid at KUL' : r.ph === 0 ? (r.k < .75 ? 'Launch mode' : 'Cold-gas thrusters') : r.ph === 1 ? (r.k < .12 ? 'Lift-off' : r.k < .44 ? 'Backflip over the Straits' : r.k < .6 ? 'Hovering on thrusters' : r.k < .88 ? 'Thruster-steered turn' : 'Touchdown burn') : r.k < .2 ? 'Touchdown at SIN' : u < .99 ? 'Rolling out' : 'Parked at SIN'; })() : isStar() ? (() => { const c = rkC(u); return u < .02 ? 'On the pad at KUL' : u < .07 ? 'Ignition' : c < .3 ? 'Liftoff · 33 Raptors' : c < C_SEP - .012 ? 'Climbing to orbit' : c < .535 ? 'Hot staging' : c < .6 ? 'Booster boostback' : c < .64 ? 'Coasting in low Earth orbit' : c < .82 ? 'Re-entry · belly flop' : boosterAlt(c) > 5.2 ? 'Grid fins steering' : boosterAlt(c) > 1.6 ? 'Landing burn · 13 engines' : boosterAlt(c) > .02 ? 'Final burn · 3 engines' : c < .9965 ? 'Booster caught at KUL' : c < .9995 ? 'Ship landing burn at SIN' : 'Both stages home'; })() : u < .02 ? 'Boarding at KUL' : u < .2 ? 'Taking off' : u < .6 ? 'Above the clouds' : u < .9 ? 'Descending into Singapore' : u < .99 ? 'Touchdown' : 'Landed at SIN'; }
   document.documentElement.style.setProperty('--a', `oklch(.58 .17 ${st.hue.toFixed(1)})`);
   document.getElementById('sky').style.background = `linear-gradient(rgb(${st.sky[0].map(Math.round)}),rgb(${st.sky[1].map(Math.round)}))`;
   return st;
@@ -1020,12 +1151,12 @@ function frame(now) { if (_dead) return;
 
   const [sa, se] = cur.sun, SA = sa*Math.PI/180, SE = se*Math.PI/180, nt = cur.night;
   sun.position.set(Math.sin(SA)*Math.cos(SE)*25, Math.sin(SE)*25, Math.cos(SA)*Math.cos(SE)*25);
-  sun.color.copy(dayC).lerp(duskC, sm(40, 20, se) ).lerp(nightC, nt); sun.intensity = 2.6*(1 - nt) + .35*nt;
-  hemi.intensity = 1.1*(1 - nt) + .28*nt; hemi.color.set(0xffffff).lerp(nightC, nt); hemi.groundColor.set(0xcfc6b8).lerp(_coolG, sm(40, 20, se)*.7*(1 - nt));
-  scene.environmentIntensity = .5*(1 - nt) + .12*nt;
+  sun.color.copy(dayC).lerp(duskC, sm(40, 20, se) ).lerp(nightC, nt); sun.intensity = (2.6*(1 - nt) + .35*nt)*(1 - .9*cur.dark);
+  hemi.intensity = (1.1*(1 - nt) + .28*nt)*(1 - .85*cur.dark); hemi.color.set(0xffffff).lerp(nightC, nt); hemi.groundColor.set(0xcfc6b8).lerp(_coolG, sm(40, 20, se)*.7*(1 - nt));
+  scene.environmentIntensity = (.5*(1 - nt) + .12*nt)*(1 - .9*cur.dark);
 
   plots.forEach((g, i) => { const v = cur.grow[i], G = g.userData.grow; G.visible = v > .002; G.scale.set(1, Math.max(.002, backOut(v)), 1);
-    WIN[i].emissiveIntensity = (.15 + .9*cur.focus[i]*(.85 + .15*Math.sin(t*2.4))) * (1 + 2.4*sm(i*.08, i*.08 + .4, nt)) * clamp(v*3); });
+    WIN[i].emissiveIntensity = (.15 + .9*cur.focus[i]*(.85 + .15*Math.sin(t*2.4))) * (1 + 2.4*sm(i*.08, i*.08 + .4, nt)) * clamp(v*3) * (1 - sm(.1 + .1*(6 - i), .25 + .1*(6 - i), cur.dark)); });
   const cam2 = Math.atan2(camera.position.x - PLOTS[4][0], camera.position.z - PLOTS[4][1]);
   floors.forEach((f, k) => { const d = Math.max(0, 1 - Math.abs(k - cur.act)) * cur.explode;
     f.position.set(Math.sin(cam2)*1.2*d, k*.66 + k*.42*cur.explode, Math.cos(cam2)*1.2*d); });
@@ -1040,6 +1171,7 @@ function frame(now) { if (_dead) return;
     if (ud.ufo) { const yaw = Math.atan2(_ft.x, _ft.z); plane.rotation.set(0, yaw, Math.sin(now/520)*.07*(RM ? 0 : 1));
       plane.position.y += .06 + Math.sin(now/420)*.025*(RM ? 0 : 1); ud.ufo.disc.rotation.y += dt*2.2;
       ud.ufo.beam.material.opacity = (u < .03 || u > .97 ? .28 : .05)*(.8 + .2*Math.sin(now/90)); ud.ufo.beam.visible = true; }
+    if (ud.car) carPose(u, now, hg);
     padK += ((ud.star ? 1 : 0) - padK)*(1 - Math.exp(-dt*2.2)); if (Math.abs(padK - (ud.star ? 1 : 0)) < .002) padK = ud.star ? 1 : 0;
     const rwK = 1 - sm(0, .42, padK), riseK = sm(.38, 1, padK);
     RUNWAYS.forEach((rw, i) => { rw.visible = rwK > .003; rw.scale.set(.4 + .6*rwK, 1, Math.max(.001, rwK*rwK*(3 - 2*rwK))); rw.position.y = B - .012*(1 - rwK); });
@@ -1054,8 +1186,8 @@ function frame(now) { if (_dead) return;
         o.s.quaternion.copy(camera.quaternion).multiply(_bq.setFromEuler(_be.set(o.rx, o.ang, o.rz))); o.s.scale.setScalar(o.k); }); }
     hangarEl.style.opacity = clamp(hg*1.8).toFixed(3); hangarEl.style.pointerEvents = hg > .5 ? 'auto' : 'none';
     hangarEl.classList.toggle('show', hg > .45); passEl.classList.toggle('hold', hg > .3); passEl.classList.toggle('done', u > .985); passEl.classList.toggle('mini', !!ud.star && u > .03 && u <= .985); }
-  { const nl = sm(.5, 1, nt); M.glow.emissiveIntensity = .3 + 2.8*nl; M.mbs.emissiveIntensity = .45*nl; M.vortex.emissiveIntensity = .35 + 1.6*nl; }
-  PADS.forEach(pd => { const m = pd.mats; m.ring.emissiveIntensity = .5 + .5*nt; m.inner.emissiveIntensity = .05 + .12*nt; m.pool.opacity = .1*nt; }); // static pad lights
+  { const nl = sm(.5, 1, nt)*(1 - sm(.05, .45, cur.dark)); M.glow.emissiveIntensity = .3 + 2.8*nl; M.mbs.emissiveIntensity = .45*nl; M.vortex.emissiveIntensity = .35 + 1.6*nl; }
+  PADS.forEach(pd => { const m = pd.mats; m.ring.emissiveIntensity = (.5 + .5*nt)*(1 - cur.dark); m.inner.emissiveIntensity = .05 + .12*nt; m.pool.opacity = .1*nt; }); // static pad lights
   azureCloud.scale.setScalar(Math.max(.001, cur.azure)); azureCloud.visible = cur.azure > .02;
   M.puff.opacity = cur.cloud*.92; clouds.visible = cur.cloud > .01;
   clouds.children.forEach((g, i) => g.position.x += Math.sin(t*.2 + i)*.0008);
