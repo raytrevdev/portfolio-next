@@ -259,7 +259,7 @@ const rkWarp = ci => { let lo = 0, hi = RKW.length - 1; while (hi - lo > 1) { co
 const rkC = u => { if (u < .07) return 0; const x = Math.min(1, (u - .07)/.9); return rkWarp(x < .45 ? .5*Math.pow(x/.45, 1.6) : 1 - .5*Math.pow((1 - x)/.55, 2.3)); };
 const rocketPoint = (u, out) => rkPos(rkC(u), out);
 const isStar = () => plane.userData.type === 'starship';
-const RS = 1.35, RW = .03, RY0 = .045*RS, isCar = () => plane.userData.type === 'roadster'; // Roadster scale; body-centre height above the ground
+const RS = 1.35, RW = .032, RY0 = .045*RS, isCar = () => plane.userData.type === 'roadster'; // Roadster scale; body-centre height above the ground
 M.satBody = std('satellite_foil', 0xd8b25a, .35, .8);
 const cellTex = (bg, ln) => { const c = document.createElement('canvas'); c.width = 128; c.height = 256; const g = c.getContext('2d'); g.fillStyle = bg; g.fillRect(0, 0, 128, 256); g.strokeStyle = ln; g.lineWidth = 2;
   for (let x = 0; x <= 128; x += 16) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, 256); g.stroke(); } for (let y = 0; y <= 256; y += 16) { g.beginPath(); g.moveTo(0, y); g.lineTo(128, y); g.stroke(); }
@@ -526,86 +526,107 @@ const PLANES = {
     const fold = new THREE.Mesh(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute([...N, -.2, .019, -.3, -.1, .009, -.3, ...N, .1, .009, -.3, .2, .019, -.3], 3)), new THREE.MeshBasicMaterial({ color: oklch(.6, .17, 25), side: THREE.DoubleSide }));
     fold.geometry.computeVertexNormals(); fold.name = 'paper_stripe'; fold.position.y = .004; g.add(fold);
   },
-  // Roadster (current design): smooth lofted body (superellipse sections with tumblehome, sculpted fenders and wheel
-  // arches), teardrop glass canopy, clear-coat paint, wrap-around light bars, airfoil wing on swan-neck pylons, 10-spoke
-  // rims, cold-gas thrusters. Origin = body centre (RY0 above the ground) so the backflip turns about the middle of the car.
+  // Roadster (current design): faceted wedge of flat panels and sharp creases (straight lines between a few cross-sections,
+  // flat shading, polygonal wheel arches), long flat nose with an edge light line, cab-forward glasshouse framed by two rear
+  // sails, black lower band rising to the rear, body-colour wing, four-nozzle diffuser, light aero rims with black twin
+  // spokes, cold-gas thrusters. Origin = body centre (RY0 above the ground) so the backflip turns about the middle of the car.
   roadster(g) {
     const phys = (name, color, metal, rough, extra = {}) => new THREE.MeshPhysicalMaterial({ name, color, metalness: metal, roughness: rough, clearcoat: 1, clearcoatRoughness: .07, ...extra });
-    M.rdBody = M.rdBody || phys('roadster_body', 0xe6e8eb, .55, .26);
-    M.rdGlass = M.rdGlass || phys('roadster_canopy', 0x0c0f14, .35, .05);
-    M.rdUnder = M.rdUnder || std('roadster_underbody', 0x17191c, .6, .25);
+    M.rdBody = M.rdBody || phys('roadster_body', 0xe4e6e9, .5, .3, { flatShading: true });
+    M.rdGlass = M.rdGlass || phys('roadster_canopy', 0x0c0f14, .35, .05, { flatShading: true });
+    M.rdUnder = M.rdUnder || std('roadster_underbody', 0x17191c, .6, .25, { flatShading: true });
     M.rdCarbon = M.rdCarbon || phys('roadster_wing', 0x26292e, .4, .3);
     M.rdTire = M.rdTire || std('roadster_tire', 0x141516, .82);
     M.rdRim = M.rdRim || std('roadster_rim', 0x5d6168, .22, .92);
     M.rdHead = M.rdHead || std('roadster_headlight_bar', 0xffffff, .3, 0, { emissive: 0xffffff, emissiveIntensity: 2.2 });
-    M.rdTail = M.rdTail || std('roadster_taillight_bar', 0xff2a2a, .3, 0, { emissive: 0xff2020, emissiveIntensity: 2.8 });
+    M.rdTail = M.rdTail || std('roadster_taillight_bar', 0xb00000, .3, 0, { emissive: 0xff0000, emissiveIntensity: .9 });
     const Y = -RY0/RS; g.scale.setScalar(RS);
-    // monotone-ish cubic through [z, value] keys (z descending, nose -> tail)
-    const curve = K => z => { const n = K.length; if (z >= K[0][0]) return K[0][1]; if (z <= K[n - 1][0]) return K[n - 1][1];
-      let i = 0; while (K[i + 1][0] > z) i++;
-      const sl = j => j <= 0 ? (K[1][1] - K[0][1])/(K[1][0] - K[0][0]) : j >= n - 1 ? (K[n - 1][1] - K[n - 2][1])/(K[n - 1][0] - K[n - 2][0]) : (K[j + 1][1] - K[j - 1][1])/(K[j + 1][0] - K[j - 1][0]);
-      const [z0, v0] = K[i], [z1, v1] = K[i + 1], h = z1 - z0, t = (z - z0)/h, t2 = t*t, t3 = t2*t;
-      return (2*t3 - 3*t2 + 1)*v0 + (t3 - 2*t2 + t)*sl(i)*h + (-2*t3 + 3*t2)*v1 + (t3 - t2)*sl(i + 1)*h; };
-    const Z0 = .238, Z1 = -.234;
-    const hw = curve([[Z0, .028], [.228, .058], [.2, .082], [.15, .097], [.12, .101], [.07, .097], [0, .094], [-.07, .099], [-.13, .106], [-.18, .103], [-.215, .094], [Z1, .078]]);
-    const top = curve([[Z0, .018], [.226, .028], [.19, .04], [.14, .049], [.08, .053], [0, .056], [-.1, .06], [-.17, .064], [-.21, .064], [Z1, .057]]);
-    const bot = curve([[Z0, .015], [.222, .012], [.16, .01], [-.16, .01], [-.21, .014], [Z1, .026]]);
-    const nEx = curve([[Z0, 2.2], [.2, 3], [-.2, 3.2], [Z1, 2.6]]);
-    const WZ = [.135, -.135], CY = RW, RA = RW + .006, RF = RW + .018;
-    const arch = z => { for (const zw of WZ) { const d = z - zw; if (Math.abs(d) < RA) return CY + Math.sqrt(RA*RA - d*d); } return -1; };
-    const fend = z => { for (const zw of WZ) { const d = z - zw; if (Math.abs(d) < RF) return CY + Math.sqrt(RF*RF - d*d) - .002; } return -1; };
-    const ss = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a)/(b - a))); return t*t*(3 - 2*t); };
-    // body loft: NZ rings x NA around (theta from the bottom centre), plus a centre vertex at each end
-    const NZ = 56, NA = 36, P = [], EY = [];
-    for (let i = 0; i < NZ; i++) { const z = Z0 + (Z1 - Z0)*(1 - Math.cos(Math.PI*i/(NZ - 1)))/2, w = hw(z), tp = top(z), bt = bot(z), mid = (tp + bt)/2, half = (tp - bt)/2, n = nEx(z), a = arch(z), f = fend(z);
-      for (let j = 0; j < NA; j++) { const th = -Math.PI/2 + 2*Math.PI*j/NA, c = Math.cos(th), sn = Math.sin(th);
-        const ex = Math.sign(c)*Math.abs(c)**(2/n), ey = Math.sign(sn)*Math.abs(sn)**(2/n);
-        let x = w*ex*(1 - .17*Math.max(0, ey)**2), y = mid + half*ey; const fw = ss(.06, .09, Math.abs(x));
-        if (f > 0 && ey >= 0) y += (Math.max(y, f - (1 - ey)*.008) - y)*fw;            // fender over the wheel
-        if (a > 0 && ey < 0) y += (Math.max(y, a + .006*(ey + 1)) - y)*fw;           // wheel arch: lift the lower skin above the tyre
-        P.push(x, y + Y, z); EY.push(ey); } }
-    const cN = P.length/3; P.push(0, (top(Z0) + bot(Z0))/2 + Y, Z0 + .002); const cT = cN + 1; P.push(0, (top(Z1) + bot(Z1))/2 + Y, Z1 - .002);
-    const idx = [[], []], id = (i, j) => i*NA + (j % NA);
-    for (let i = 0; i < NZ - 1; i++) for (let j = 0; j < NA; j++) { const a = id(i, j), b = id(i + 1, j), c = id(i + 1, j + 1), d = id(i, j + 1), low = EY[a] < -.55 && EY[d] < -.55 ? 1 : 0;
-      idx[low].push(a, b, c, a, c, d); }
-    for (let j = 0; j < NA; j++) { idx[0].push(cN, id(0, j), id(0, j + 1)); idx[0].push(cT, id(NZ - 1, j + 1), id(NZ - 1, j)); }
-    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
-    geo.setIndex([...idx[0], ...idx[1]]); geo.addGroup(0, idx[0].length, 0); geo.addGroup(idx[0].length, idx[1].length, 1); geo.computeVertexNormals();
+    const Z0 = .24, Z1 = -.234;
+    const lerpK = (K, z) => { if (z >= K[0][0]) return K[0].slice(1); for (let i = 0; i < K.length - 1; i++) if (z >= K[i + 1][0]) { const t = (K[i][0] - z)/(K[i][0] - K[i + 1][0]); return K[i].slice(1).map((v, k) => v + (K[i + 1][k + 1] - v)*t); } return K[K.length - 1].slice(1); };
+    // cross-sections, nose -> tail: [z, sill half-width, sill y, lower crease w, y, shoulder crease w, y, top edge w, y, inner edge w, y, centre y].
+    // Values interpolate in straight lines, so every panel between two sections stays flat: a long wedge nose rising in one
+    // plane to the windscreen, slab sides with a shoulder crease over the wheels, and a black lower band (sill -> lower crease)
+    // that sweeps up toward the rear.
+    const ST = [
+      [Z0, .055, .02, .07, .022, .074, .028, .07, .03, .04, .031, .031],
+      [.228, .075, .014, .088, .02, .094, .03, .09, .036, .05, .038, .037],
+      [.19, .085, .012, .098, .024, .104, .046, .096, .052, .058, .053, .051],
+      [.17, .086, .012, .101, .026, .106, .06, .098, .064, .06, .062, .056],
+      [.14, .088, .012, .104, .028, .107, .07, .098, .072, .062, .068, .061],
+      [.11, .09, .012, .104, .028, .106, .068, .096, .07, .062, .067, .062],
+      [.06, .09, .012, .1, .03, .102, .062, .092, .066, .062, .065, .063],
+      [0, .09, .012, .098, .032, .1, .06, .09, .064, .062, .064, .064],
+      [-.06, .094, .012, .104, .036, .108, .062, .098, .066, .066, .065, .064],
+      [-.11, .098, .012, .111, .04, .114, .068, .104, .072, .07, .066, .064],
+      [-.14, .1, .012, .114, .042, .116, .072, .106, .075, .072, .066, .064],
+      [-.17, .098, .014, .112, .042, .113, .07, .104, .073, .074, .066, .065],
+      [-.2, .095, .018, .108, .042, .108, .066, .1, .068, .074, .066, .066],
+      [Z1, .085, .03, .098, .042, .1, .062, .095, .065, .072, .065, .065]];
+    const WZ = [.14, -.14], RA = RW + .003, AD = [-.034, -.026, -.014, 0, .014, .026, .034];
+    const arch = z => { for (const zw of WZ) { const d = z - zw; if (Math.abs(d) < RA) return RW + Math.sqrt(RA*RA - d*d); } return -1; };
+    const zs = [...new Set([...ST.map(r => r[0]), ...WZ.flatMap(zw => AD.map(d => +(zw + d).toFixed(4)))])].sort((a, b) => b - a);
+    const ring = z => { let [wb, yb, ws, ysl, wsh, ysh, wt, yt, wi, yi, yc] = lerpK(ST, z); const a = arch(z);
+      if (a > 0) { yb = Math.max(yb, a - .004); ysl = Math.max(ysl, a + .002); } // polygonal wheel arch: lift the sill and lower crease over the tyre
+      return [[0, lerpK(ST, z)[1]], [wb, yb], [ws, ysl], [wsh, ysh], [wt, yt], [wi, yi], [0, yc], [-wi, yi], [-wt, yt], [-wsh, ysh], [-ws, ysl], [-wb, yb]].map(([x, y]) => [x, y + Y, z]); };
+    const tri = [[], []], push = (m, ...v) => v.forEach(q => tri[m].push(...q)), DARK = new Set([0, 1, 10, 11]); // underbody + black sill
+    for (let i = 0; i < zs.length - 1; i++) { const r0 = ring(zs[i]), r1 = ring(zs[i + 1]);
+      for (let j = 0; j < 12; j++) { const j2 = (j + 1) % 12, m = DARK.has(j) ? 1 : 0; push(m, r0[j], r1[j], r1[j2], r0[j2], r0[j], r1[j2]); } }
+    { const cap = (r, fwd) => { const c = r.reduce((s2, q) => [s2[0] + q[0]/12, s2[1] + q[1]/12, s2[2] + q[2]/12], [0, 0, 0]);
+        for (let j = 0; j < 12; j++) { const j2 = (j + 1) % 12; push(DARK.has(j) ? 1 : 0, c, fwd ? r[j] : r[j2], fwd ? r[j2] : r[j]); } };
+      cap(ring(Z0), true); cap(ring(Z1), false); }
+    const geo = new THREE.BufferGeometry(), pos = [...tri[0], ...tri[1]]; geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo.addGroup(0, tri[0].length/3, 0); geo.addGroup(tri[0].length/3, tri[1].length/3, 1); geo.computeVertexNormals();
     const body = new THREE.Mesh(geo, [M.rdBody, M.rdUnder]); body.name = 'roadster_body'; body.castShadow = true; body.receiveShadow = true; g.add(body);
-    // teardrop canopy sunk slightly into the body
-    { const C0 = .088, C1 = -.138, CN = 30, CA = 18, Q = [];
-      for (let i = 0; i < CN; i++) { const t = i/(CN - 1), z = C0 + (C1 - C0)*t, pk = .42, u = t < pk ? t/pk : (1 - t)/(1 - pk), bump = Math.sin(Math.PI/2*Math.min(1, u*1.15));
-        const h = .03*Math.pow(bump, t < pk ? .55 : .8), w = .062*Math.pow(bump, .35) + .002, base = top(z) - .008;
-        for (let j = 0; j <= CA; j++) { const th = Math.PI*j/CA, c = Math.cos(th), sn = Math.sin(th); Q.push(w*Math.sign(c)*Math.abs(c)**.8, base + (h + .008)*sn**1.4 + Y, z); } }
-      const ci = []; for (let i = 0; i < CN - 1; i++) for (let j = 0; j < CA; j++) { const a = i*(CA + 1) + j, b = a + CA + 1; ci.push(a, b, b + 1, a, b + 1, a + 1); }
-      const cg = new THREE.BufferGeometry(); cg.setAttribute('position', new THREE.Float32BufferAttribute(Q, 3)); cg.setIndex(ci); cg.computeVertexNormals();
-      const canopy = new THREE.Mesh(cg, M.rdGlass); canopy.name = 'roadster_canopy'; canopy.castShadow = true; g.add(canopy); }
-    // wrap-around light bars following the nose and tail plan shape
-    const bar = (name, m, y, z0, wx, back) => { const pts = []; for (let k = 0; k <= 16; k++) { const x = -wx + 2*wx*k/16, zz = z0 - back*(x/wx)**2; pts.push(new THREE.Vector3(x, y + Y, zz)); }
-      const o = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 32, .0022, 6), m); o.name = name; g.add(o); };
-    bar('roadster_headlight_bar', M.rdHead, .022, .232, .072, .05);
-    bar('roadster_taillight_bar', M.rdTail, .052, -.231, .086, -.03);
-    pbox(g, 'roadster_diffuser', .15, .016, .02, M.rdUnder, 0, .022 + Y, -.222);
-    // airfoil wing on swan-neck pylons (they hang it from above)
-    { const af = new THREE.Shape(); af.moveTo(.028, 0); af.bezierCurveTo(.02, .006, -.01, .007, -.028, .002); af.lineTo(-.028, 0); af.bezierCurveTo(-.01, -.002, .02, -.002, .028, 0);
-      const wg = new THREE.ExtrudeGeometry(af, { depth: .2, bevelEnabled: false, curveSegments: 10 }).translate(0, 0, -.1).rotateY(Math.PI/2);
-      const wing = new THREE.Mesh(wg, M.rdCarbon); wing.name = 'roadster_wing'; wing.position.set(0, .112 + Y, -.198); wing.rotation.x = -.1; wing.castShadow = true; g.add(wing);
-      [-1, 1].forEach(sd => { const ep = pbox(g, `roadster_wing_endplate_${sd}`, .003, .018, .05, M.rdCarbon, sd*.1, .11 + Y, -.198); ep.castShadow = true;
-        const neck = new THREE.CatmullRomCurve3([[-.168, .062], [-.172, .09], [-.182, .118], [-.198, .124], [-.205, .118]].map(([z, y]) => new THREE.Vector3(sd*.055, y + Y, z)));
-        const pyl = new THREE.Mesh(new THREE.TubeGeometry(neck, 20, .0028, 6), M.rdCarbon); pyl.name = `roadster_wing_pylon_${sd}`; g.add(pyl); }); }
-    // wheels: tyre, 10-spoke rim, centre cap
-    const wheels = []; [[-1, 1], [1, 1], [-1, -1], [1, -1]].forEach(([sx, sz]) => { const wg = new THREE.Group(); wg.name = `roadster_wheel_${sx}_${sz}`; wg.position.set(sx*.088, RW + Y, sz*.135); g.add(wg);
-      const tyre = new THREE.Mesh(new THREE.TorusGeometry(RW - .0075, .0075, 10, 28).rotateY(Math.PI/2), M.rdTire); tyre.scale.set(1.5, 1, 1); tyre.castShadow = true; wg.add(tyre);
-      const disc = new THREE.Mesh(new THREE.CylinderGeometry(RW - .012, RW - .012, .006, 24).rotateZ(Math.PI/2), M.rdUnder); disc.position.x = -sx*.003; wg.add(disc);
-      for (let k = 0; k < 10; k++) { const sp = pbox(wg, `roadster_spoke_${k}`, .003, .0024, RW - .012, M.rdRim, sx*.006, 0, 0); sp.geometry.translate(0, 0, (RW - .012)/2); sp.rotation.x = k*Math.PI/5; }
-      const rimLip = new THREE.Mesh(new THREE.TorusGeometry(RW - .0125, .0018, 6, 28).rotateY(Math.PI/2), M.rdRim); rimLip.position.x = sx*.006; wg.add(rimLip);
-      const capM = new THREE.Mesh(new THREE.CylinderGeometry(.006, .006, .004, 12).rotateZ(Math.PI/2), M.rdRim); capM.position.x = sx*.007; wg.add(capM);
+    // flat-panel loft helper: rows of points -> non-indexed triangles (flat facets)
+    const loft = (rows, m, name) => { const Q = [], k = rows[0].length;
+      for (let i = 0; i < rows.length - 1; i++) for (let j = 0; j < k - 1; j++) { const a = rows[i][j], b = rows[i + 1][j], c = rows[i + 1][j + 1], d = rows[i][j + 1]; [a, b, c, a, c, d].forEach(q => Q.push(q[0], q[1] + Y, q[2])); }
+      const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(Q, 3)); lg.computeVertexNormals();
+      const o = new THREE.Mesh(lg, m); o.name = name; o.castShadow = true; g.add(o); return o; };
+    // glasshouse: raked windscreen, flat roof, rear glass dropping to the deck; five-point sections give flat panes
+    const deckY = z => { const r = lerpK(ST, z); return Math.max(r[9], r[10]) - .003; }, ROOF = .09;
+    const GL = [[.128, .058, 0], [.035, .066, ROOF], [-.06, .066, ROOF - .002], [-.18, .046, 0]];
+    const glassW = z => lerpK(GL, z)[0];
+    { const rows = []; for (let i = 0; i < GL.length - 1; i++) for (let k = 0; k < (i === GL.length - 2 ? 2 : 1); k++) { const z = k ? GL[i + 1][0] : GL[i][0], [w, yr] = lerpK(GL, z), b = deckY(z), yR = Math.max(yr, b);
+        rows.push([[w, b, z], [w*.8, Math.max(b, yR - .008), z], [0, yR, z], [-w*.8, Math.max(b, yR - .008), z], [-w, b, z]]); }
+      loft(rows, M.rdGlass, 'roadster_glasshouse'); }
+    // rear sails: flat silver buttresses from the roof corners to the tail, framing the recessed rear glass
+    [-1, 1].forEach(sd => { const row = (z, t) => { const yS = ROOF - .006 - (ROOF - .006 - deckY(-.214) - .004)*t, w = glassW(Math.max(z, -.18)), xi = sd*(w - .004), xo = sd*(w + .016 + .008*t), yb = deckY(z) - .002;
+          return sd < 0 ? [[xi, yb, z], [xi, yS, z], [xo, yS - .003, z], [xo, yb - .004, z]] : [[xo, yb - .004, z], [xo, yS - .003, z], [xi, yS, z], [xi, yb, z]]; };
+      loft([row(-.05, 0), row(-.214, 1)], M.rdBody, `roadster_sail_${sd}`); });
+    // light lines: hood leading edge (white) and full-width tail bar (red) under a dark band
+    const bar = (name, m, y, z0, wx, back, r = .0022) => { const pts = []; for (let k = 0; k <= 16; k++) { const x = -wx + 2*wx*k/16, zz = z0 - back*(x/wx)**2; pts.push(new THREE.Vector3(x, y + Y, zz)); }
+      const o = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 32, r, 6), m); o.name = name; g.add(o); return o; };
+    bar('roadster_nose_light', M.rdHead, .0305, .2405, .07, .012, .0016);
+    bar('roadster_front_intake', M.rdUnder, .019, .232, .074, .02, .006);
+    [.0145, .0225].forEach((y, i) => bar(`roadster_intake_slat_${i}`, M.rdCarbon, y, .2385, .066, .02, .0011));
+    [-1, 1].forEach(sd => { const v = pbox(g, `roadster_hood_vent_${sd}`, .034, .0016, .01, M.rdUnder, sd*.03, 0, .136); v.position.y = lerpK(ST, .136)[10] + .0009 + Y; });
+    bar('roadster_taillight_bar', M.rdTail, .054, -.24, .088, -.012, .0024);
+    bar('roadster_tail_band', M.rdUnder, .0595, -.239, .088, -.012, .0026);
+    // diffuser: black block, four round cold-gas nozzles, vertical strakes, two outer fins
+    pbox(g, 'roadster_diffuser', .16, .015, .026, M.rdUnder, 0, .027 + Y, -.222);
+    M.rdNozzle = M.rdNozzle || std('roadster_nozzle', 0x9a9ea6, .25, .9);
+    [-.06, -.02, .02, .06].forEach((x, i) => { const nz = new THREE.Mesh(new THREE.CylinderGeometry(.0085, .0075, .014, 18, 1, true).rotateX(Math.PI/2), M.rdNozzle); nz.name = `roadster_nozzle_${i}`; nz.position.set(x, .025 + Y, -.239); g.add(nz);
+      const th = new THREE.Mesh(new THREE.CircleGeometry(.0072, 18).rotateY(Math.PI), M.rdUnder); th.position.set(x, .025 + Y, -.236); g.add(th); });
+    [-.08, -.04, 0, .04, .08].forEach((x, i) => pbox(g, `roadster_strake_${i}`, .0022, .011, .026, M.rdUnder, x, .021 + Y, -.226));
+    [-1, 1].forEach(sd => pbox(g, `roadster_diffuser_fin_${sd}`, .003, .018, .026, M.rdUnder, sd*.088, .02 + Y, -.222));
+    // body-colour wing on short mounts with angled end plates
+    { const af = new THREE.Shape(); af.moveTo(.032, 0); af.lineTo(.028, .006); af.lineTo(-.03, .008); af.lineTo(-.034, .002); af.lineTo(-.03, -.001); af.lineTo(.028, -.002); af.lineTo(.032, 0);
+      const wgm = new THREE.ExtrudeGeometry(af, { depth: .23, bevelEnabled: false }).translate(0, 0, -.115).rotateY(Math.PI/2);
+      const wing = new THREE.Mesh(wgm, M.rdBody); wing.name = 'roadster_wing'; wing.position.set(0, .1 + Y, -.212); wing.rotation.x = -.08; wing.castShadow = true; g.add(wing);
+      [-1, 1].forEach(sd => { const ep = pbox(g, `roadster_wing_endplate_${sd}`, .003, .026, .06, M.rdBody, sd*.116, .094 + Y, -.21); ep.rotation.x = .25; ep.rotation.z = sd*.12; ep.castShadow = true;
+        const mt = pbox(g, `roadster_wing_mount_${sd}`, .004, .036, .02, M.rdCarbon, sd*.05, .082 + Y, -.205); mt.rotation.x = -.35; }); }
+    // wheels: light aero faces with five black twin spokes, thin tyres
+    const wheels = []; [[-1, 1], [1, 1], [-1, -1], [1, -1]].forEach(([sx, sz]) => { const wg = new THREE.Group(); wg.name = `roadster_wheel_${sx}_${sz}`; wg.position.set(sx*.09, RW + Y, sz*.14); g.add(wg);
+      const tyre = new THREE.Mesh(new THREE.TorusGeometry(RW - .0055, .0055, 10, 32).rotateY(Math.PI/2), M.rdTire); tyre.scale.set(2, 1, 1); tyre.castShadow = true; wg.add(tyre);
+      M.rdFace = M.rdFace || std('roadster_wheel_face', 0xeceef0, .4, .25); const disc = new THREE.Mesh(new THREE.CylinderGeometry(RW - .0075, RW - .0075, .008, 28).rotateZ(Math.PI/2), M.rdFace); wg.add(disc);
+      for (let k = 0; k < 5; k++) [-.13, .13].forEach((o, q) => { const sp = pbox(wg, `roadster_blade_${k}_${q}`, .0018, .0042, RW - .009, M.rdTire, sx*.0046, 0, 0); sp.geometry.translate(0, 0, (RW - .009)/2); sp.rotation.x = k*2*Math.PI/5 + o; });
+      const capM = new THREE.Mesh(new THREE.CylinderGeometry(.0055, .0055, .003, 12).rotateZ(Math.PI/2), M.rdTire); capM.position.x = sx*.0048; wg.add(capM);
       wheels.push(wg); });
     // cold-gas jets (cones, tip at the nozzle): rear boost, four lift jets underneath, two steering jets per side
-    const jetMat = () => new THREE.MeshBasicMaterial({ color: 0x7fcfff, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide });
+    const jetMat = () => new THREE.MeshBasicMaterial({ color: 0xcfeeff, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
     M.rdJetR = jetMat(); M.rdJetD = jetMat(); M.rdJetS = jetMat();
     const jet = (name, r, h, m, x, y, z, rx, rz) => { const o = new THREE.Mesh(new THREE.ConeGeometry(r, h, 14, 1, true).translate(0, -h/2, 0), m); o.name = name; o.position.set(x, y + Y, z); o.rotation.set(rx, 0, rz); o.visible = false; g.add(o); return o; };
-    const jets = { rear: [-.06, -.02, .02, .06].map((x, i) => jet(`roadster_jet_rear_${i}`, .014, .16, M.rdJetR, x, .026, -.23, Math.PI/2, 0)),
+    const jets = { rear: [-.06, -.02, .02, .06].map((x, i) => jet(`roadster_jet_rear_${i}`, .009, .16, M.rdJetR, x, .025, -.246, Math.PI/2, 0)),
       down: [[-.07, .12], [.07, .12], [-.07, -.12], [.07, -.12]].map(([x, z], i) => jet(`roadster_jet_lift_${i}`, .02, .14, M.rdJetD, x, .012, z, 0, 0)),
       side: [-1, 1].flatMap(sd => [.1, -.1].map((z, i) => Object.assign(jet(`roadster_jet_side_${sd}_${i}`, .012, .09, M.rdJetS, sd*.104, .04, z, 0, sd*Math.PI/2), { sd }))) };
     plane.userData.car = { wheels, jets };
@@ -639,45 +660,109 @@ const FLIGHT = [[-.5,.4,.15],[-.5,.4,-2.6],[-.5,.95,-5.4],[-.1,2.8,-8.4],[1.4,5.
 const flight = new THREE.CatmullRomCurve3(FLIGHT, false, 'centripetal');
 const HEAD = []; { let prev = null; for (let i = 0; i <= 400; i++) { const t = flight.getTangentAt(i/400); let a = Math.atan2(t.x, t.z)*180/Math.PI; if (prev !== null) { while (a - prev > 180) a -= 360; while (a - prev < -180) a += 360; } HEAD.push(a); prev = a; } }
 const headAt = u => { const f = clamp(u)*400, i = Math.min(399, Math.floor(f)); return HEAD[i] + (HEAD[i+1] - HEAD[i])*(f - i); };
-// Roadster route: launch-mode run down the KUL runway -> cold-gas jump off the coast (backflip on the way up, near-hover
-// at the apex, thruster-steered turn) -> touchdown on the SIN runway. Ground track = three curves (run, air, roll-out);
-// the timing keeps horizontal speed continuous at take-off and touchdown, and slows the air phase around the apex.
+// Roadster route: launch-mode run down the KUL runway -> up the J-ramp at the runway end (it curls past vertical, so the
+// car leaves the lip nose-up and over the top) -> the backflip completes in the air while the cold-gas thrusters carry it
+// over the Straits (near-hover at the apex, thruster-steered turn) -> touchdown on the SIN runway. Phases: 0 run, 3 ramp,
+// 1 air, 2 roll-out. The timing keeps the speed continuous between phases and slows the air phase around the apex.
+const RAMP = { x: -.5, z0: -4.15, R: .8, TH: 1.95, W: .36 }; // base on the runway centreline (heading -z), arc radius, sweep (rad, past vertical), deck width
+const GND = .006, RSAG = RAMP.R - Math.sqrt(RAMP.R**2 - (.14*RS)**2) + .003; // runway top above the board; ramp chord sag at the wheelbase + clearance
+const rampPt = (th, off = 0) => [RAMP.z0 - (RAMP.R - off)*Math.sin(th), RAMP.R*(1 - Math.cos(th)) + off*Math.cos(th)]; // [z, y] on the arc, `off` along the surface normal
 const RD = (() => { const C = pts => new THREE.CatmullRomCurve3(pts.map(([x, z]) => new THREE.Vector3(x, 0, z)), false, 'centripetal');
-  const A = C([[-.5, .15], [-.5, -1.4], [-.44, -2.4], [-.2, -3.05], [.05, -3.35]]);
-  const R = C([[.05, -3.35], [.7, -4.5], [1.45, -5.9], [2.2, -6.8], [2.75, -6.4], [2.82, -5.2]]);
-  const Bc = C([[2.82, -5.2], [2.8, -3.8], [2.8, -2.1]]);
-  const LA = A.getLength(), LR = R.getLength(), LB = Bc.getLength(), c = .7, V = 2*LA + 2*LB + (1 + c)*LR;
-  return { A, R, Bc, LA, LR, LB, c, H: 1.9, TA: 2*LA/V, TR: (1 + c)*LR/V, TB: 2*LB/V }; })();
+  const A = C([[-.5, -.14], [-.5, -2.2], [-.5, RAMP.z0]]); // starts with the whole car on the asphalt (runway ends at z .3)
+  const [lz, ly] = rampPt(RAMP.TH, RY0 + RSAG), ex = [Math.cos(RAMP.TH), Math.sin(RAMP.TH)]; // lip (body centre) and exit direction in (f, y)
+  const R = C([[-.5, lz], [.2, -4.9], [.95, -5.5], [1.65, -6.2], [2.2, -6.75], [2.72, -6.45], [2.82, -5.2]]); // sidesteps east first, clear of the tower
+  const Bc = C([[2.82, -5.2], [2.8, -3.8], [2.8, -2.25]]); // stops short of the SIN runway end (z -1.7)
+  const LA = A.getLength(), LP = RAMP.R*RAMP.TH, LR = R.getLength(), LB = Bc.getLength(), c = .7, V = 2*LA + LP + (1 + c)*LR + 2*LB;
+  return { A, R, Bc, LA, LP, LR, LB, c, H: 1.9, lipY: ly - RY0, lz, ex, TA: 2*LA/V, TP: LP/V, TR: (1 + c)*LR/V, TB: 2*LB/V }; })();
 const _rdT = new THREE.Vector3();
-function rdAt(u, out) { u = clamp(u); let ph, k, s, cv, d;
-  if (u < RD.TA) { ph = 0; k = u/RD.TA; s = k*k; cv = RD.A; d = s*RD.LA; }
-  else if (u < RD.TA + RD.TR) { ph = 1; k = (u - RD.TA)/RD.TR; s = k + RD.c*Math.sin(2*Math.PI*k)/(2*Math.PI); cv = RD.R; d = RD.LA + s*RD.LR; }
-  else { ph = 2; k = Math.min(1, (u - RD.TA - RD.TR)/RD.TB); s = 1 - (1 - k)**2; cv = RD.Bc; d = RD.LA + RD.LR + s*RD.LB; }
-  s = clamp(s); cv.getPointAt(s, out); cv.getTangentAt(s, _rdT); out.y = B + RY0 + (ph === 1 ? RD.H*4*s*(1 - s) : 0);
-  return { ph, k, s, d, yaw: Math.atan2(_rdT.x, _rdT.z) }; }
+// u can be NaN for a frame while the vehicle switches (a section measures 0 tall), so fall back to the start
+function rdAt(u, out) { u = Number.isFinite(u) ? clamp(u) : 0; const T1 = RD.TA, T2 = T1 + RD.TP, T3 = T2 + RD.TR; let ph, k, s = 0, d, yaw;
+  if (u < T1) { ph = 0; k = u/T1; s = k*k; RD.A.getPointAt(s, out); RD.A.getTangentAt(s, _rdT); out.y = B + GND + RY0; d = s*RD.LA; yaw = Math.atan2(_rdT.x, _rdT.z); }
+  else if (u < T2) { ph = 3; k = (u - T1)/RD.TP; s = k*RAMP.TH; const [z, y] = rampPt(s, RY0 + RSAG*sm(0, .12, k) + GND*(1 - sm(0, .12, k))); out.set(RAMP.x, B + y, z); d = RD.LA + k*RD.LP; yaw = Math.PI; }
+  else if (u < T3) { ph = 1; k = (u - T2)/RD.TR; s = clamp(k + RD.c*Math.sin(2*Math.PI*k)/(2*Math.PI)); RD.R.getPointAt(s, out); RD.R.getTangentAt(s, _rdT);
+    out.y = B + RY0 + GND*s + (1 - s)*RD.lipY + 4*(RD.H - RD.lipY/2)*s*(1 - s); d = RD.LA + RD.LP + s*RD.LR;
+    { const e = 2.6*k, w = sm(.04, .24, k); out.x += (RAMP.x - out.x)*(1 - w); out.z += (RD.lz - e*RD.ex[0] - out.z)*(1 - w); // ramp heads -z, so z = z0 - f
+      out.y += (B + RY0 + RD.lipY + e*RD.ex[1] - out.y)*(1 - w); }
+    const ty = Math.atan2(_rdT.x, _rdT.z), dy = Math.atan2(Math.sin(ty - Math.PI), Math.cos(ty - Math.PI)); yaw = ty - dy*(1 - sm(.14, .42, k)); } // hold the ramp heading until clear, then swing onto the track
+  else { ph = 2; k = Math.min(1, (u - T3)/RD.TB); s = 1 - (1 - k)**2; RD.Bc.getPointAt(s, out); RD.Bc.getTangentAt(s, _rdT); out.y = B + GND + RY0; d = RD.LA + RD.LP + RD.LR + s*RD.LB; yaw = Math.atan2(_rdT.x, _rdT.z); }
+  return { ph, k, s, d, yaw }; }
 const RHEAD = []; // unwrapped heading table, built on first use (clamp/sm are defined further down)
 const carHead = u => { if (!RHEAD.length) { const tv = new THREE.Vector3(); let prev = null; for (let i = 0; i <= 400; i++) { let a = rdAt(i/400, tv).yaw*180/Math.PI;
     if (prev !== null) { while (a - prev > 180) a -= 360; while (a - prev < -180) a += 360; } RHEAD.push(a); prev = a; } }
   const f = clamp(u)*400, i = Math.min(399, Math.floor(f)); return RHEAD[i] + (RHEAD[i+1] - RHEAD[i])*(f - i); };
-function carPose(u, now, hg) {
+function carPose(u, now, hg, dt) {
   const car = plane.userData.car, r = rdAt(u, _fp), w = RM ? 0 : 1; let pitch = 0, roll = 0, turn = 0;
-  if (r.ph === 0) pitch = -.05*sm(.05, .3, r.k)*(1 - sm(.85, 1, r.k)); // squat under launch-mode acceleration
-  else if (r.ph === 1) { const lv = sm(0, .06, r.k)*(1 - sm(.8, .95, r.k)); // level out for lift-off and touchdown
-    pitch = -Math.atan(4*RD.H*(1 - 2*r.s)/RD.LR)*.6*lv - Math.PI*2*sm(.12, .42, r.k); // nose follows the arc + one backflip
+  if (r.ph === 0) { pitch = -.05*sm(.05, .3, r.k)*(1 - sm(.85, 1, r.k)); _fp.y += Math.abs(pitch)*.14*RS; } // squat under launch-mode acceleration (rear axle stays on the asphalt)
+  else if (r.ph === 3) pitch = -r.s; // nose follows the ramp surface, past vertical at the lip
+  else if (r.ph === 1) { const lv = sm(.45, .55, r.k)*(1 - sm(.8, .95, r.k)), slope = (-RD.lipY + 4*(RD.H - RD.lipY/2)*(1 - 2*r.s))/RD.LR;
+    pitch = -RAMP.TH - (2*Math.PI - RAMP.TH)*sm(0, .42, r.k) - Math.atan(slope)*.6*lv; // finish the flip the ramp started, then follow the arc
     turn = carHead(Math.min(1, u + .006)) - carHead(Math.max(0, u - .006)); roll = clamp(-turn*.035, -.6, .6)*lv; }
-  else { const b = sm(0, .05, r.k)*(1 - sm(.05, .2, r.k)); _fp.y -= .014*b; pitch = .06*b; } // touchdown: suspension compresses, nose dips
+  else { const b = sm(0, .05, r.k)*(1 - sm(.05, .2, r.k)); pitch = .05*b; _fp.y += pitch*.14*RS; } // touchdown: nose dips, front axle stays on the asphalt
   plane.position.copy(_fp); plane.rotation.set(pitch, r.yaw + Math.sin(now/1100)*.9*hg*w, roll);
   car.wheels.forEach(wg => wg.rotation.x = r.d/(RW*RS));
   const fl = i => .8 + .2*Math.sin(now/23 + i*1.7)*w, k = r.k, air = r.ph === 1;
-  const aR = r.ph === 0 ? sm(.75, .95, k) : air ? 1 - sm(.06, .14, k) : 0;
-  const aD = air ? Math.max(1 - sm(.08, .16, k), .55*sm(.36, .44, k)*(1 - sm(.56, .64, k)), sm(.84, .93, k)) : r.ph === 2 ? 1 - sm(0, .05, k) : 0;
-  const aS = air ? sm(.46, .54, k)*(1 - sm(.86, .94, k)) : 0;
-  M.rdJetR.opacity = .7*aR; M.rdJetD.opacity = .6*aD; M.rdJetS.opacity = .7*aS;
-  car.jets.rear.forEach((o, i) => { o.visible = aR > .02; o.scale.set(1, (.5 + .7*aR)*fl(i), 1); });
-  car.jets.down.forEach((o, i) => { o.visible = aD > .02; o.scale.set(1, (.4 + .8*aD)*fl(i + 4), 1); });
-  car.jets.side.forEach((o, i) => { const outer = o.sd*turn < 0 ? 1 : .45; o.visible = aS > .02; o.scale.set(outer, (.4 + .8*aS)*outer*fl(i + 8), outer); });
+  const aR = r.ph === 3 ? sm(.7, 1, k) : air ? 1 - sm(.08, .16, k) : 0;
+  const aD = air ? Math.max(.55*sm(.36, .44, k)*(1 - sm(.56, .64, k)), sm(.84, .93, k)) : r.ph === 2 ? 1 - sm(0, .05, k) : 0;
+  const aS = air ? Math.max(.6*sm(.1, .16, k)*(1 - sm(.3, .38, k)), sm(.46, .54, k)*(1 - sm(.86, .94, k))) : 0;
+  M.rdJetR.opacity = .45*aR; M.rdJetD.opacity = .4*aD; M.rdJetS.opacity = .45*aS;
+  car.jets.rear.forEach((o, i) => { o.visible = aR > .02; o.scale.set(.8, (.25 + .2*aR)*fl(i), .8); });
+  car.jets.down.forEach((o, i) => { o.visible = aD > .02; o.scale.set(.8, (.22 + .2*aD)*fl(i + 4), .8); });
+  car.jets.side.forEach((o, i) => { const outer = o.sd*turn < 0 ? 1 : .45; o.visible = aS > .02; o.scale.set(outer*.8, (.25 + .25*aS)*outer*fl(i + 8), outer*.8); });
+  // vapour: puffs leave each firing nozzle along its axis and are left behind as the car moves
+  if (!RM && dt > 0) { plane.updateMatrixWorld(true);
+    [[car.jets.rear, aR, 46, 1.3, .6, .035, .2], [car.jets.down, aD, 70, 1.7, 1.2, .05, .3], [car.jets.side, aS, 32, 1, .5, .03, .15]].forEach(([js, a, rate, sp, life, s0, s1]) => {
+      if (a < .03) return;
+      js.forEach(o => { if (!o.visible) return; let n = rate*a*dt + Math.random(); n = Math.floor(n); if (!n) return;
+        o.getWorldPosition(_vp); _vd.set(0, -1, 0).applyQuaternion(o.getWorldQuaternion(_vq));
+        for (let q = 0; q < n; q++) { const j = .18; vapSpawn(_vp.x + _vd.x*.02, _vp.y + _vd.y*.02, _vp.z + _vd.z*.02,
+          (_vd.x + (Math.random() - .5)*j)*sp, (_vd.y + (Math.random() - .5)*j)*sp, (_vd.z + (Math.random() - .5)*j)*sp, life*(.75 + .5*Math.random()), s0, s1*(.8 + .4*Math.random()), .85*Math.min(1, a*1.3)); } }); }); }
 }
-
+// cold-gas vapour: pooled soft particles. Puffs expand, slow down and fade; any that reach the ground (or water) spread
+// out sideways and billow, which builds the landing cloud. Drawn as world-sized points with a soft round falloff.
+const VAP_N = 1600, VP = new Float32Array(VAP_N*3), VV = new Float32Array(VAP_N*3), VA = new Float32Array(VAP_N*4); // age, life, s0, s1
+const VS = new Float32Array(VAP_N), VAL = new Float32Array(VAP_N), VA0 = new Float32Array(VAP_N), VGND = new Uint8Array(VAP_N); let vapHead = 0, vapLive = 0;
+const _vp = new THREE.Vector3(), _vd = new THREE.Vector3(), _vq = new THREE.Quaternion();
+const vapGeo = new THREE.BufferGeometry(); vapGeo.setAttribute('position', new THREE.BufferAttribute(VP, 3)); vapGeo.setAttribute('aSize', new THREE.BufferAttribute(VS, 1)); vapGeo.setAttribute('aAlpha', new THREE.BufferAttribute(VAL, 1));
+const vapMat = new THREE.ShaderMaterial({ name: 'thruster_vapour', transparent: true, depthWrite: false, uniforms: { uScale: { value: 400 }, uColor: { value: new THREE.Color(0xf2f5f8) } },
+  vertexShader: 'attribute float aSize; attribute float aAlpha; uniform float uScale; varying float vA; void main() { vec4 mv = modelViewMatrix*vec4(position, 1.); gl_PointSize = aSize*uScale/max(.001, -mv.z); vA = aAlpha; gl_Position = projectionMatrix*mv; }',
+  fragmentShader: 'uniform vec3 uColor; varying float vA; void main() { vec2 c = gl_PointCoord - .5; float d = length(c)*2.; if (d > 1.) discard; float a = (1. - d*d)*(1. - d*d); float lit = clamp(.55 + .45*(1. - d) - .35*c.y*2., 0., 1.); /* lit from above, shaded edges */ gl_FragColor = vec4(mix(vec3(.62, .66, .71), uColor, lit), a*vA); }' });
+const vapour = new THREE.Points(vapGeo, vapMat); vapour.name = 'thruster_vapour'; vapour.frustumCulled = false; vapour.userData.noExport = true; vapour.renderOrder = 3; scene.add(vapour);
+function vapSpawn(x, y, z, vx, vy, vz, life, s0, s1, a0) { const i = vapHead; vapHead = (vapHead + 1) % VAP_N;
+  VP[i*3] = x; VP[i*3 + 1] = y; VP[i*3 + 2] = z; VV[i*3] = vx; VV[i*3 + 1] = vy; VV[i*3 + 2] = vz; VA[i*4] = 0; VA[i*4 + 1] = life; VA[i*4 + 2] = s0; VA[i*4 + 3] = s1; VA0[i] = a0; VGND[i] = 0; vapLive = Math.max(vapLive, 1); }
+function updateVapour(dt) {
+  vapMat.uniforms.uScale.value = renderer.domElement.height/(2*Math.tan(camera.fov*Math.PI/360));
+  if (!vapLive) return; let live = 0; const gy = B + .012, drag = Math.exp(-dt*2.2);
+  for (let i = 0; i < VAP_N; i++) { const L = VA[i*4 + 1]; if (L <= 0) continue; const age = VA[i*4] += dt;
+    if (age >= L) { VA[i*4 + 1] = 0; VAL[i] = 0; VS[i] = 0; continue; } live++;
+    const k = i*3; VV[k] *= drag; VV[k + 1] = VV[k + 1]*drag + .05*dt; VV[k + 2] *= drag; // slows, then drifts up a little as it warms
+    VP[k] += VV[k]*dt; VP[k + 1] += VV[k + 1]*dt; VP[k + 2] += VV[k + 2]*dt;
+    if (VP[k + 1] < gy) { VP[k + 1] = gy; if (!VGND[i]) { VGND[i] = 1; const v = Math.abs(VV[k + 1]) + .4, a = Math.random()*Math.PI*2; // hits the ground: roll out sideways and billow
+        VV[k] += Math.cos(a)*v*.8; VV[k + 2] += Math.sin(a)*v*.8; VV[k + 1] = .04; VA[i*4 + 3] *= 1.7; VA[i*4 + 1] = Math.max(L, age + .9); VA0[i] *= .6; } }
+    const t = age/VA[i*4 + 1]; VS[i] = VA[i*4 + 2] + (VA[i*4 + 3] - VA[i*4 + 2])*(1 - (1 - t)**2); VAL[i] = VA0[i]*Math.min(1, .35 + t*30)*(1 - t)**1.6; } // visible right at the nozzle
+  vapLive = live; vapGeo.attributes.position.needsUpdate = vapGeo.attributes.aSize.needsUpdate = vapGeo.attributes.aAlpha.needsUpdate = true; }
+// J-ramp (Roadster only, rises from the runway when it is picked): concrete deck curling past vertical, red edge lights,
+// white centre dashes, steel truss tower behind with an arm over the lip and struts to the back of the deck
+const rampG = new THREE.Group(); rampG.name = 'roadster_ramp'; rampG.userData.noExport = true; rampG.position.set(RAMP.x, B, 0); rampG.visible = false; scene.add(rampG);
+{ M.rampDeck = std('ramp_deck', 0xd5d7da, .85, 0, { side: THREE.DoubleSide }); M.rampEdge = std('ramp_edge_light', 0xb00000, .3, 0, { emissive: 0xff0000, emissiveIntensity: 1 });
+  M.rampLine = std('ramp_centre_line', 0xffffff, .4, 0, { emissive: 0xffffff, emissiveIntensity: .7 }); M.truss = std('ramp_truss', 0x9a9ea5, .45, .65);
+  const N = 56, hw = RAMP.W/2, T = .03, P = [], ix = [], rows = [[RAMP.z0 + .16, 0, -.003]];
+  for (let i = 0; i <= N; i++) { const th = RAMP.TH*i/N, [z, y] = rampPt(th), [zu, yu] = rampPt(th, -T); rows.push([z, y, null, zu, yu]); }
+  rows.forEach(r => { const [z, y] = r, zu = r[3] ?? z, yu = r[4] ?? r[2]; P.push(-hw, y, z, hw, y, z, hw, yu, zu, -hw, yu, zu); });
+  for (let i = 0; i < rows.length - 1; i++) for (let j = 0; j < 4; j++) { const a = i*4 + j, b = (i + 1)*4 + j, c = (i + 1)*4 + (j + 1)%4, d = i*4 + (j + 1)%4; ix.push(a, b, c, a, c, d); }
+  const dg = new THREE.BufferGeometry(); dg.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); dg.setIndex(ix); dg.computeVertexNormals();
+  const deck = new THREE.Mesh(dg, M.rampDeck); deck.name = 'ramp_deck'; deck.castShadow = deck.receiveShadow = true; rampG.add(deck);
+  const along = (x, off, t0, t1, n = 40) => new THREE.CatmullRomCurve3([...Array(n + 1)].map((_, i) => { const [z, y] = rampPt(t0 + (t1 - t0)*i/n, off); return new THREE.Vector3(x, y, z); }));
+  [-1, 1].forEach(sd => { const e = new THREE.Mesh(new THREE.TubeGeometry(along(sd*(hw - .006), .005, 0, RAMP.TH, 64), 96, .0055, 6), M.rampEdge); e.name = `ramp_edge_${sd}`; rampG.add(e); });
+  for (let i = 0; i < 18; i++) { const t0 = RAMP.TH*(i + .2)/18, t1 = RAMP.TH*(i + .7)/18, ln = new THREE.Mesh(new THREE.TubeGeometry(along(0, .003, t0, t1, 4), 6, .003, 4), M.rampLine); ln.name = `ramp_line_${i}`; rampG.add(ln); }
+  const beam = (a, b, r = .006) => { const va = new THREE.Vector3(...a), vb = new THREE.Vector3(...b), len = va.distanceTo(vb), m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 6), M.truss);
+    m.position.copy(va).add(vb).multiplyScalar(.5); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), vb.clone().sub(va).normalize()); m.castShadow = true; rampG.add(m); };
+  const zt = RAMP.z0 - RAMP.R - .16, ht = rampPt(RAMP.TH)[1] + .1, tw = .075, lv = 9, lipZ = rampPt(RAMP.TH)[0];
+  [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([a, b]) => beam([a*tw, 0, zt + b*tw], [a*tw, ht, zt + b*tw], .008));
+  for (let i = 1; i <= lv; i++) { const y = ht*i/lv, y0 = ht*(i - 1)/lv;
+    [[-1, -1, 1, -1], [1, -1, 1, 1], [1, 1, -1, 1], [-1, 1, -1, -1]].forEach(([a, b, c, d]) => { beam([a*tw, y, zt + b*tw], [c*tw, y, zt + d*tw], .004); beam([a*tw, y0, zt + b*tw], [c*tw, y, zt + d*tw], .003); }); }
+  [-1, 1].forEach(sd => { beam([sd*tw, ht, zt + tw], [sd*tw, ht, lipZ + .05], .006); beam([sd*tw, ht - .1, zt + tw], [sd*tw, ht, lipZ + .05], .004); // arm over the lip
+    [.55, .95, 1.3, 1.62].forEach(th => { const [zu, yu] = rampPt(th, -T); if (zu > zt + tw) beam([sd*hw*.8, yu, zu], [sd*tw, yu, zt + tw], .004); }); }); }
+let rampK = 0;
 const PLOTS = [[-6.4, 3.4], [-6.2, -2.8], [-2.7, -4.3], [-2.5, 1.9], [6.9, -4.0], [4.3, 4.6], [4.8, 0]];
 const NODES = [PLOTS[0], PLOTS[1], PLOTS[2], PLOTS[3], [-.5, .75], [3.15, -1.45], PLOTS[4], PLOTS[5], PLOTS[4], PLOTS[6]];
 const V = (x, z) => new THREE.Vector3(x, 0, z);
@@ -992,7 +1077,7 @@ function S(s, p, t) {
       if (car) o.cloud = o.fog = 0; // the Roadster stays well below the cloud deck
       const lc = [25 + u*80, 6, 10.5, -.5, 1.1 + (_fp.y - .35)*.6, -.25, 0, -.12];
       const ch = [40 + u*110, 6 + 12*sm(.25, .4, p)*(1 - sm(.6, .72, p)) - 4*orb, 6.5 + 5.5*orb, _fp.x, _fp.y + .8, _fp.z, 0, -.1];
-      const air = car && rd.ph === 1 ? sm(0, .25, rd.k)*(1 - sm(.8, 1, rd.k)) : 0;
+      const air = !car ? 0 : rd.ph === 3 ? .6*sm(0, 1, rd.k) : rd.ph === 1 ? Math.max(.6*(1 - sm(0, .15, rd.k)), sm(0, .25, rd.k))*(1 - sm(.8, 1, rd.k)) : 0;
       const chase = star ? mix(lc, ch, sm(.13, .26, u)) : car ? [carHead(u) - 115, 13 + 10*air, 2.7 + 1.8*air, _fp.x, _fp.y, _fp.z, 0, -.06] : [headAt(u) - 150, 12 + 10*sm(.25, .4, p)*(1 - sm(.55, .7, p)), 2.9, _fp.x, _fp.y, _fp.z, 0, -.06];
       const hc = star ? [28 + Math.sin(t*.3)*18, 11, 4.4, -.5, 1.0, -.25, 0, -.05] : [28 + Math.sin(t*.3)*18, 15, 2.5, -.5, .42, .1, 0, -.05], arrive = mix([70, 22, 10.5, -.8, .8, -1.4, 0, .12], hc, sm(0, .035, p));
       const fixed = p < .5 ? arrive : star ? [12 + 10*sm(.6, 1, p), 15 - 3*sm(.6, 1, p), 11.5, 1.1, 1.1, -1.2, 0, -.06] : [60, 16, 8, 2.8, .6, -3.4, 0, -.06];
@@ -1064,7 +1149,7 @@ function target(t) {
   htrack.style.transform = `translateX(${-k*cw}px)`; hcards.forEach((c, i) => c.classList.toggle('on', i === Math.round(k)));
   projs.forEach((d, i) => d.classList.toggle('on', i === (ps[7] < .5 ? 0 : 1)));
   { const u = sm(.17, .92, ps[5]); trackFlight(u); passFill.style.width = u*100 + '%'; passDot.style.left = u*100 + '%'; km.textContent = Math.round(u*300);
-    passStage.textContent = isCar() ? (() => { const r = rdAt(u, _p); return u < .02 ? 'On the grid at KUL' : r.ph === 0 ? (r.k < .75 ? 'Launch mode' : 'Cold-gas thrusters') : r.ph === 1 ? (r.k < .12 ? 'Lift-off' : r.k < .44 ? 'Backflip over the Straits' : r.k < .6 ? 'Hovering on thrusters' : r.k < .88 ? 'Thruster-steered turn' : 'Touchdown burn') : r.k < .2 ? 'Touchdown at SIN' : u < .99 ? 'Rolling out' : 'Parked at SIN'; })() : isStar() ? (() => { const c = rkC(u); return u < .02 ? 'On the pad at KUL' : u < .07 ? 'Ignition' : c < .3 ? 'Liftoff · 33 Raptors' : c < C_SEP - .012 ? 'Climbing to orbit' : c < .535 ? 'Hot staging' : c < .6 ? 'Booster boostback' : c < .64 ? 'Coasting in low Earth orbit' : c < .82 ? 'Re-entry · belly flop' : boosterAlt(c) > 5.2 ? 'Grid fins steering' : boosterAlt(c) > 1.6 ? 'Landing burn · 13 engines' : boosterAlt(c) > .02 ? 'Final burn · 3 engines' : c < .9965 ? 'Booster caught at KUL' : c < .9995 ? 'Ship landing burn at SIN' : 'Both stages home'; })() : u < .02 ? 'Boarding at KUL' : u < .2 ? 'Taking off' : u < .6 ? 'Above the clouds' : u < .9 ? 'Descending into Singapore' : u < .99 ? 'Touchdown' : 'Landed at SIN'; }
+    passStage.textContent = isCar() ? (() => { const r = rdAt(u, _p); return u < .02 ? 'On the grid at KUL' : r.ph === 0 ? (r.k < .8 ? 'Launch mode' : 'Lining up the ramp') : r.ph === 3 ? 'Up the ramp' : r.ph === 1 ? (r.k < .1 ? 'Off the lip · cold-gas thrusters' : r.k < .44 ? 'Backflip over the Straits' : r.k < .6 ? 'Hovering on thrusters' : r.k < .88 ? 'Thruster-steered turn' : 'Touchdown burn') : r.k < .2 ? 'Touchdown at SIN' : u < .99 ? 'Rolling out' : 'Parked at SIN'; })() : isStar() ? (() => { const c = rkC(u); return u < .02 ? 'On the pad at KUL' : u < .07 ? 'Ignition' : c < .3 ? 'Liftoff · 33 Raptors' : c < C_SEP - .012 ? 'Climbing to orbit' : c < .535 ? 'Hot staging' : c < .6 ? 'Booster boostback' : c < .64 ? 'Coasting in low Earth orbit' : c < .82 ? 'Re-entry · belly flop' : boosterAlt(c) > 5.2 ? 'Grid fins steering' : boosterAlt(c) > 1.6 ? 'Landing burn · 13 engines' : boosterAlt(c) > .02 ? 'Final burn · 3 engines' : c < .9965 ? 'Booster caught at KUL' : c < .9995 ? 'Ship landing burn at SIN' : 'Both stages home'; })() : u < .02 ? 'Boarding at KUL' : u < .2 ? 'Taking off' : u < .6 ? 'Above the clouds' : u < .9 ? 'Descending into Singapore' : u < .99 ? 'Touchdown' : 'Landed at SIN'; }
   document.documentElement.style.setProperty('--a', `oklch(.58 .17 ${st.hue.toFixed(1)})`);
   document.getElementById('sky').style.background = `linear-gradient(rgb(${st.sky[0].map(Math.round)}),rgb(${st.sky[1].map(Math.round)}))`;
   return st;
@@ -1171,11 +1256,13 @@ function frame(now) { if (_dead) return;
     if (ud.ufo) { const yaw = Math.atan2(_ft.x, _ft.z); plane.rotation.set(0, yaw, Math.sin(now/520)*.07*(RM ? 0 : 1));
       plane.position.y += .06 + Math.sin(now/420)*.025*(RM ? 0 : 1); ud.ufo.disc.rotation.y += dt*2.2;
       ud.ufo.beam.material.opacity = (u < .03 || u > .97 ? .28 : .05)*(.8 + .2*Math.sin(now/90)); ud.ufo.beam.visible = true; }
-    if (ud.car) carPose(u, now, hg);
+    if (ud.car) carPose(u, now, hg, dt);
     padK += ((ud.star ? 1 : 0) - padK)*(1 - Math.exp(-dt*2.2)); if (Math.abs(padK - (ud.star ? 1 : 0)) < .002) padK = ud.star ? 1 : 0;
     const rwK = 1 - sm(0, .42, padK), riseK = sm(.38, 1, padK);
     RUNWAYS.forEach((rw, i) => { rw.visible = rwK > .003; rw.scale.set(.4 + .6*rwK, 1, Math.max(.001, rwK*rwK*(3 - 2*rwK))); rw.position.y = B - .012*(1 - rwK); });
     PADS.forEach(pd => { pd.g.visible = riseK > .003; pd.inner.scale.set(.6 + .4*riseK, Math.max(.001, backOut(riseK)), .6 + .4*riseK); });
+    { const want = ud.car ? 1 : 0; rampK += (want - rampK)*(1 - Math.exp(-dt*2.2)); if (Math.abs(rampK - want) < .002) rampK = want; // Roadster-only ramp
+      rampG.visible = rampK > .003; rampG.scale.set(1, Math.max(.001, backOut(rampK)), 1); }
     if (ud.star) rocketPose(u, now, hg); else { rocketLight.intensity = 0; smoke.visible = smoke2.visible = false; if (SEPFX) SEPFX.f.visible = SEPFX.r.visible = false; LC.visible = false; trMesh.visible = trGlow.visible = false; if (RE) RE.wake.visible = RE.halo.visible = false; if (VFX) VFX.vent.concat(VFX.cat).forEach(s => s.visible = false); }
     const sp = ud.star ? cur.space : 0, cS = ud.star ? rkC(u) : 0; stars.visible = sp > .01; starMat.opacity = sp;
     orbit.visible = !!ud.star && cS > .1 && cS < .9; // above the frame until the climb brings them in
@@ -1197,7 +1284,7 @@ function frame(now) { if (_dead) return;
   if (entT0 < 0) { entT0 = now; document.documentElement.classList.add('city-ready'); if (scrollY < 40) document.querySelectorAll('#start .count').forEach(countUp); }
   { const ek = RM || scrollY > 40 ? 1 : clamp((now - entT0)/900); if (ek >= 1) entT0 = Math.min(entT0, now - 900);
     scene.position.y = -.45*(1 - ek)**3; }
-  updateAmbient(dt, cur); updateFireworks(dt); renderer.render(scene, camera); _raf = requestAnimationFrame(frame);
+  updateAmbient(dt, cur); updateFireworks(dt); updateVapour(dt); renderer.render(scene, camera); _raf = requestAnimationFrame(frame);
 }
 _raf = requestAnimationFrame(frame);
 const sync = () => { if (_dead) return; try { target(performance.now()/1000); } catch (e) {} };
