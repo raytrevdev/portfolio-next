@@ -9,7 +9,13 @@ export default function CityEngine() {
     let dispose: (() => void) | undefined;
     let cancelled = false;
     import('@/lib/three/engine').then(({ mountCareerCity }) => {
-      if (!cancelled) dispose = mountCareerCity();
+      if (cancelled) return;
+      dispose = mountCareerCity();
+      // The engine shortens chapters on phones after load, which moves anchors: re-jump to the hash
+      // (e.g. #contact when coming back from /roots). ?from= stays in the URL so GA can attribute the visit.
+      const id = decodeURIComponent(location.hash.slice(1));
+      if (id) document.getElementById(id)?.scrollIntoView();
+      requestAnimationFrame(() => document.documentElement.classList.remove('from-roots'));
     });
     return () => {
       cancelled = true;

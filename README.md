@@ -1,6 +1,6 @@
 # Raymond Ting — Career City
 
-Portfolio of Ting Tze Jian (Raymond), Senior Software Developer based in Singapore. The résumé is a miniature 3D clay city: as you scroll, a glowing commit puck travels the road and each career step grows as a building — Kuala Lumpur → a flight across the Straits of Johor (airliner, jet, UFO… or a full Starship launch and catch) → Singapore, ending at night with fireworks.
+Portfolio of Ting Tze Jian (Raymond), Senior Software Developer based in Singapore. The résumé is a miniature 3D clay city: as you scroll, a glowing commit puck travels the road and each career step grows as a building — Kuala Lumpur → a flight across the Straits of Johor (airliner, jet, UFO… a full Starship launch and catch, or a thruster-jumping Roadster) → Singapore, ending at night with fireworks.
 
 **Live site → [rdevting.com](https://www.rdevting.com/)**
 
@@ -83,4 +83,4 @@ The city pushes these events to `dataLayer` (`{ event, ...params }`):
 | `auto_launch_stop` | Auto-launch stopped before landing | `aircraft`, `progress` (0–100) |
 | `auto_launch_complete` | Auto-launch reached touchdown | `aircraft` |
 
-`aircraft` is one of `airliner`, `jumbo`, `jet`, `prop`, `paper`, `ufo`, `starship`.
+`aircraft` is one of `airliner`, `jumbo`, `jet`, `prop`, `paper`, `ufo`, `starship`, `roadster`.

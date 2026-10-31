@@ -1,0 +1,178 @@
+/* Ting Family Land — scoped styles. Every rule is under .ting-root so nothing leaks into the host app. */
+.ting-root,.ting-root *{box-sizing:border-box}
+.ting-root{--ink:#f3ede1;--dim:#d6cebd;--acc:oklch(0.84 0.12 92)}
+.ting-root[data-era="0"]{--acc:#e2d6bd}
+.ting-root[data-era="1"]{--acc:oklch(0.84 0.12 92)}
+.ting-root[data-era="2"]{--acc:oklch(0.84 0.12 215)}
+.ting-root[data-era="3"]{--acc:oklch(0.84 0.12 45)}
+html:has(.ting-root),body:has(.ting-root){margin:0;background:#0d0c0a;overscroll-behavior:none}
+.ting-root{color:var(--ink);font:400 16px/1.5 var(--tl-sans,'Geist'),system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.ting-root a{color:var(--ink);text-underline-offset:4px}
+.ting-root a:hover{color:var(--acc)}
+.ting-root button{font:inherit;color:inherit}
+.ting-root #sky{position:fixed;inset:0;z-index:0;background:#0d0c0a}
+.ting-root #gl{position:fixed;inset:0;width:100%;height:100%;display:block;z-index:0}
+.ting-root #vig{position:fixed;inset:0;z-index:1;pointer-events:none;background:radial-gradient(ellipse 75% 70% at 50% 46%,rgba(0,0,0,0) 55%,rgba(0,0,0,.42) 100%)}
+.ting-root #grain{position:fixed;inset:-60px;z-index:2;pointer-events:none;opacity:.075;mix-blend-mode:overlay;animation:tl-grain .9s steps(5) infinite}
+@keyframes tl-grain{0%{transform:translate(0,0)}20%{transform:translate(-23px,14px)}40%{transform:translate(17px,-29px)}60%{transform:translate(-11px,-8px)}80%{transform:translate(29px,21px)}100%{transform:translate(0,0)}}
+.ting-root #sky{display:none}
+.ting-root #fade{position:fixed;inset:0;background:#0b0a08;opacity:0;z-index:2;pointer-events:none}
+.ting-root #scrim{position:fixed;inset:0;z-index:1;pointer-events:none;background:linear-gradient(90deg,rgba(10,9,7,.6) 0%,rgba(10,9,7,.28) 36%,rgba(10,9,7,0) 58%)}
+.ting-root #track{position:relative;z-index:0;pointer-events:none}
+.ting-root header{position:fixed;top:0;left:0;right:0;z-index:7;display:flex;justify-content:space-between;align-items:center;gap:16px;padding:22px clamp(20px,4vw,48px);pointer-events:none}
+.ting-root header>*{pointer-events:auto}
+.ting-root .brand{display:flex;gap:14px;align-items:baseline;font:400 26px/1 var(--tl-serif,'Instrument Serif'),serif;text-decoration:none}
+.ting-root .brand small{font:500 11px/1 var(--tl-mono,'Geist Mono'),monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+.ting-root .hud{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.ting-root .chip{font:500 11px/1 var(--tl-mono,'Geist Mono'),monospace;letter-spacing:.1em;text-transform:uppercase;padding:10px 13px;border:1px solid rgba(243,237,225,.26);border-radius:999px;background:rgba(13,12,10,.42);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);display:flex;gap:8px;align-items:center;text-decoration:none;white-space:nowrap}
+.ting-root .chip b{color:var(--acc);font-weight:500}
+.ting-root a.chip:hover{border-color:var(--acc)}
+.ting-root #rail{position:fixed;right:clamp(18px,3vw,44px);top:50%;transform:translateY(-50%);z-index:6;display:flex;flex-direction:column;gap:22px;align-items:flex-end}
+.ting-root #rail button{all:unset;cursor:pointer;display:flex;gap:12px;align-items:center;font:500 11px/1 var(--tl-mono,'Geist Mono'),monospace;letter-spacing:.12em;text-transform:uppercase;color:#b3aa98;transition:color .3s}
+.ting-root #rail button span{opacity:.0;transform:translateX(6px);transition:all .3s}
+.ting-root #rail:hover button span{opacity:1;transform:none}
+.ting-root #rail button i{width:9px;height:9px;border-radius:50%;border:1px solid currentColor;transition:all .3s}
+.ting-root #rail button.on{color:var(--ink)}
+.ting-root #rail button.on i{background:var(--acc);border-color:var(--acc);transform:scale(1.25)}
+.ting-root #rail button:hover{color:var(--ink)}
+.ting-root #year{position:fixed;right:clamp(20px,4vw,48px);bottom:clamp(22px,4.5vh,44px);z-index:6;text-align:right;pointer-events:none}
+.ting-root #year .y{font:400 clamp(64px,9vw,132px)/.86 var(--tl-serif,'Instrument Serif'),serif;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.ting-root #year .e{font:500 11px/1.4 var(--tl-mono,'Geist Mono'),monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-top:10px}
+.ting-root #year .e b{color:var(--acc);font-weight:500}
+.ting-root #prog{position:fixed;left:0;right:0;bottom:0;height:3px;z-index:6;background:rgba(243,237,225,.12);pointer-events:none}
+.ting-root #prog i{display:block;height:100%;width:0;background:var(--acc)}
+.ting-root #chapters{position:fixed;inset:0;z-index:4;pointer-events:none}
+.ting-root .ch{position:absolute;left:clamp(20px,7vw,112px);top:50%;transform:translateY(-50%);width:min(540px,calc(100vw - 40px));visibility:hidden;transition:visibility 0s .7s}
+.ting-root .ch.on{visibility:visible;transition-delay:0s}
+.ting-root .ch .r{opacity:0;transform:translateY(26px);transition:opacity .6s cubic-bezier(.2,.7,.2,1),transform .9s cubic-bezier(.2,.7,.2,1);transition-delay:calc(var(--d,0)*85ms)}
+.ting-root .ch.on .r{opacity:1;transform:none}
+.ting-root .ch.on .act{pointer-events:auto}
+.ting-root .eb{margin:0 0 18px;font:500 12px/1.3 var(--tl-mono,'Geist Mono'),monospace;letter-spacing:.16em;text-transform:uppercase;color:var(--acc)}
+.ting-root h1,.ting-root h2,.ting-root h3{font-family:var(--tl-serif,'Instrument Serif'),serif;font-weight:400;margin:0;letter-spacing:-.01em;text-wrap:balance}
+.ting-root h1{font-size:clamp(68px,11vw,176px);line-height:.9;text-shadow:0 2px 40px rgba(8,8,6,.5)}
+.ting-root h2{font-size:clamp(58px,7.6vw,116px);line-height:.92}
+.ting-root h3{font-size:clamp(40px,4.6vw,66px);line-height:.98}
+.ting-root h2 em,.ting-root h3 em,.ting-root h1 em{font-style:italic;color:var(--dim)}
+.ting-root .lead{margin:22px 0 0;font-size:17px;line-height:1.55;color:#e6dfd0;max-width:40ch;text-wrap:pretty}
+.ting-root .facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px;margin:34px 0 0;padding:22px 0 0;border-top:1px solid rgba(243,237,225,.22)}
+.ting-root .facts div{display:flex;flex-direction:column-reverse;gap:6px}
+.ting-root .facts dt{font:500 10.5px/1.35 var(--tl-mono,'Geist Mono'),monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
+.ting-root .facts dd{margin:0;font:400 38px/1 var(--tl-serif,'Instrument Serif'),serif}
+.ting-root .plant{margin-top:28px;display:grid;grid-template-columns:1fr auto;gap:10px 16px;align-items:end;font:500 11px/1 var(--tl-mono,'Geist Mono'),monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+.ting-root .plant b{font-weight:500;color:var(--ink);font-variant-numeric:tabular-nums}
+.ting-root .plant i{grid-column:1/-1;height:2px;background:rgba(243,237,225,.18);display:block}
+.ting-root .plant u{display:block;height:100%;width:0;background:var(--acc)}
+.ting-root .game{margin-top:30px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;font:500 11px/1 var(--tl-mono,'Geist Mono'),monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+.ting-root .pips{display:flex;gap:8px}
+.ting-root .pips i{width:30px;height:30px;border-radius:50%;border:1.5px solid rgba(243,237,225,.4);display:block;transition:all .4s}
+.ting-root .pips i.on{background:var(--acc);border-color:var(--acc);box-shadow:0 0 0 5px color-mix(in oklch,var(--acc) 25%,transparent)}
+.ting-root .skip{all:unset;cursor:pointer;padding:9px 12px;border:1px solid rgba(243,237,225,.26);border-radius:999px;color:var(--ink)}
+.ting-root .skip:hover{border-color:var(--acc);color:var(--acc)}
+.ting-root .skip[hidden]{display:none}
+.ting-root .unl{color:var(--acc)}
+.ting-root .hint{margin:22px 0 0;font:italic 400 20px/1.3 var(--tl-serif,'Instrument Serif'),serif;color:var(--dim)}
+.ting-root .gch{top:auto;bottom:clamp(40px,7vh,72px);transform:none}
+.ting-root .gch h3{font-size:clamp(36px,3.8vw,54px)}
+.ting-root .gch .lead{margin-top:14px;font-size:16px}
+.ting-root .gch .game{margin-top:20px}
+.ting-root .gch .hint{margin-top:16px;font-size:18px}
+@media (max-height:760px){
+.ting-root h2{font-size:clamp(50px,6.4vw,84px)}
+.ting-root .fin .recap{margin-top:22px;gap:12px}
+.ting-root .fin .sum{margin-top:18px}
+.ting-root .facts{margin-top:24px;padding-top:16px}
+.ting-root .facts dd{font-size:32px}
+}
+.ting-root .hero{left:0;right:0;width:auto;text-align:center;padding:0 20px}
+.ting-root .hero .sub{margin:26px 0 0;font:500 12px/1.6 var(--tl-mono,'Geist Mono'),monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+.ting-root .cue{margin:56px 0 0;font:500 11px/1 var(--tl-mono,'Geist Mono'),monospace;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);display:flex;flex-direction:column;align-items:center;gap:14px}
+.ting-root .cue::after{content:'';width:1px;height:46px;background:linear-gradient(var(--ink),transparent);animation:tl-cue 2.2s ease-in-out infinite}
+@keyframes tl-cue{0%{transform:scaleY(0);transform-origin:top}45%{transform:scaleY(1);transform-origin:top}55%{transform:scaleY(1);transform-origin:bottom}100%{transform:scaleY(0);transform-origin:bottom}}
+.ting-root .recap{list-style:none;margin:34px 0 0;padding:0;display:flex;flex-direction:column;gap:18px}
+.ting-root .recap li{display:grid;grid-template-columns:118px minmax(0,1fr) auto;gap:6px 16px;align-items:baseline}
+.ting-root .recap .yr{font:500 11px/1 var(--tl-mono,'Geist Mono'),monospace;letter-spacing:.1em;color:var(--dim)}
+.ting-root .recap .cr{font:400 30px/1 var(--tl-serif,'Instrument Serif'),serif}
+.ting-root .recap .du{font:500 11px/1 var(--tl-mono,'Geist Mono'),monospace;letter-spacing:.1em;color:var(--dim);text-transform:uppercase}
+.ting-root .recap .bar{grid-column:1/-1;height:6px;background:rgba(243,237,225,.12);position:relative;display:block}
+.ting-root .recap .bar i{position:absolute;top:0;bottom:0;display:block}
+.ting-root .sum{margin:30px 0 0;font:500 11px/1 var(--tl-mono,'Geist Mono'),monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+.ting-root .sum b{color:var(--ink);font-weight:500}
+.ting-root .fin .act{margin-top:22px;display:flex;gap:12px;flex-wrap:wrap}
+.ting-root .btn{all:unset;cursor:pointer;font:500 11px/1 var(--tl-mono,'Geist Mono'),monospace;letter-spacing:.12em;text-transform:uppercase;padding:13px 16px;border:1px solid rgba(243,237,225,.3);border-radius:999px;text-decoration:none;color:var(--ink)}
+.ting-root .btn:hover{border-color:var(--acc);color:var(--acc)}
+.ting-root #labels{position:fixed;inset:0;pointer-events:none;z-index:3}
+.ting-root .lbl{position:absolute;left:0;top:0;opacity:0;transition:opacity .5s;will-change:transform}
+.ting-root .lbl.on{opacity:1}
+.ting-root .lbl i{position:absolute;left:-5px;top:-5px;width:10px;height:10px;border-radius:50%;background:var(--ink);box-shadow:0 0 0 5px rgba(243,237,225,.16)}
+.ting-root .lbl em{position:absolute;left:0;top:0;height:1px;width:0;background:rgba(243,237,225,.7);transform-origin:0 0}
+.ting-root .lbl .tx{position:absolute;left:0;top:0;width:var(--lw,230px)}
+.ting-root .lbl b{display:block;font:400 28px/1 var(--tl-serif,'Instrument Serif'),serif}
+.ting-root #labels.compact .lbl span{display:none}
+.ting-root .lbl span{display:block;margin-top:7px;font-size:13px;line-height:1.45;color:#e2dacb;text-wrap:pretty}
+.ting-root .mk{position:absolute;left:0;top:0;width:64px;height:64px;margin:-32px 0 0 -32px;border-radius:50%;border:1.5px solid var(--acc);background:rgba(13,12,10,.32);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);cursor:pointer;pointer-events:auto;display:none;align-items:center;justify-content:center;padding:0;font:500 10px/1 var(--tl-mono,'Geist Mono'),monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--ink);transition:background .2s}
+.ting-root .mk::after{content:'';position:absolute;inset:-1.5px;border-radius:50%;border:1.5px solid var(--acc);animation:tl-pulse 1.8s ease-out infinite}
+.ting-root .mk:hover{background:color-mix(in oklch,var(--acc) 40%,transparent)}
+@keyframes tl-pulse{0%{transform:scale(1);opacity:.9}100%{transform:scale(1.9);opacity:0}}
+.ting-root .ks{position:absolute;left:0;top:0;width:28px;height:28px;margin:-14px 0 0 -14px;border:0;background:none;cursor:pointer;pointer-events:auto;display:none;padding:0}
+.ting-root .ks::before{content:'';position:absolute;left:9px;top:9px;width:10px;height:10px;background:#fff7e3;transform:rotate(45deg);animation:tl-glint 2.6s ease-in-out infinite;box-shadow:0 0 12px 2px rgba(255,240,200,.7)}
+@keyframes tl-glint{0%,100%{opacity:.25;transform:rotate(45deg) scale(.6)}50%{opacity:1;transform:rotate(45deg) scale(1)}}
+.ting-root .pop{position:absolute;font:400 30px/1 var(--tl-serif,'Instrument Serif'),serif;color:var(--acc);pointer-events:none;animation:tl-pop 1.3s ease-out forwards;white-space:nowrap}
+@keyframes tl-pop{0%{opacity:0;transform:translate(-50%,0)}15%{opacity:1}100%{opacity:0;transform:translate(-50%,-70px)}}
+.ting-root #toast{position:fixed;left:50%;bottom:58px;transform:translate(-50%,20px);z-index:8;opacity:0;transition:all .5s cubic-bezier(.2,.7,.2,1);pointer-events:none;background:rgba(13,12,10,.78);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(243,237,225,.22);border-radius:14px;padding:14px 18px;max-width:min(440px,calc(100vw - 32px));display:flex;flex-direction:column;gap:4px}
+.ting-root #toast.on{opacity:1;transform:translate(-50%,0)}
+.ting-root #toast small{font:500 10.5px/1 var(--tl-mono,'Geist Mono'),monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--acc)}
+.ting-root #toast b{font:400 24px/1.1 var(--tl-serif,'Instrument Serif'),serif}
+.ting-root #toast span{font-size:13px;color:#e2dacb}
+.ting-root #gatehint{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:6;font:500 11px/1 var(--tl-mono,'Geist Mono'),monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--acc);opacity:0;transition:opacity .4s;pointer-events:none;white-space:nowrap}
+.ting-root #gatehint.on{opacity:1}
+.ting-root #loader{position:fixed;inset:0;z-index:20;background:#0d0c0a;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;transition:opacity 1.1s ease,visibility 0s 1.1s}
+.ting-root #loader.done{opacity:0;visibility:hidden}
+.ting-root #loader h2{font-size:clamp(44px,6vw,80px)}
+.ting-root #loader p{margin:0;font:500 11px/1 var(--tl-mono,'Geist Mono'),monospace;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+.ting-root #loader i{width:180px;height:1px;background:rgba(243,237,225,.18);position:relative;overflow:hidden;display:block}
+.ting-root #loader i::after{content:'';position:absolute;inset:0;background:var(--ink);animation:tl-load 1.4s ease-in-out infinite}
+@keyframes tl-load{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+@media (max-width:760px){
+.ting-root #scrim{background:linear-gradient(0deg,rgba(10,9,7,.78) 0%,rgba(10,9,7,.4) 45%,rgba(10,9,7,0) 70%)}
+.ting-root .ch{top:auto;bottom:42px;transform:none;left:20px;right:20px;width:auto}
+.ting-root .hero{bottom:auto;top:50%;transform:translateY(-50%)}
+.ting-root #rail{display:none}
+.ting-root #year{top:70px;bottom:auto;left:20px;right:auto;text-align:left}
+.ting-root #year .y{font-size:46px}
+.ting-root .brand small{display:none}
+.ting-root .chip.opt{display:none}
+.ting-root .facts{gap:14px;margin-top:22px;padding-top:16px}
+.ting-root .facts dd{font-size:28px}
+.ting-root .lead{font-size:15px;margin-top:14px}
+.ting-root .lbl .tx{--lw:130px}
+.ting-root .lbl b{font-size:21px}
+.ting-root .lbl span{display:none}
+.ting-root .recap li{grid-template-columns:96px minmax(0,1fr) auto}
+.ting-root .recap .cr{font-size:22px}
+}
+@media (max-width:760px){
+.ting-root h1{font-size:clamp(52px,15vw,76px)}
+.ting-root h2{font-size:clamp(40px,12vw,58px)}
+.ting-root h3,.ting-root .gch h3{font-size:clamp(28px,8vw,38px)}
+.ting-root .hero .sub{font-size:10.5px}
+.ting-root .facts dd{font-size:24px}
+.ting-root .facts dt{font-size:9.5px}
+.ting-root .gch{bottom:30px}
+.ting-root .lbl .tx{--lw:118px}
+.ting-root .lbl b{font-size:18px}
+}
+/* crossing from/to the career city (components/Bridge.tsx): cross-fade the last frame where supported */
+@view-transition{navigation:auto}
+@media (prefers-reduced-motion: reduce){.ting-root .r{transition:opacity .4s!important;transform:none!important}.ting-root #grain{animation:none!important}.ting-root .cue::after{animation:none!important}}
+/* autoplay (engine.js → autoStart): play/pause toggles, label + icon follow .ting-root[data-auto] */
+.ting-root button.chip{appearance:none;color:var(--ink);cursor:pointer}
+.ting-root button.chip:hover{border-color:var(--acc)}
+.ting-root .auto{display:inline-flex;align-items:center;gap:10px}
+.ting-root .auto i{width:0;height:0;border-style:solid;border-width:5px 0 5px 8px;border-color:transparent transparent transparent currentColor;transition:border .2s}
+.ting-root[data-auto="1"] .auto i{width:8px;height:10px;border-width:0 3px;border-color:currentColor}
+.ting-root .auto .a-pause,.ting-root[data-auto="1"] .auto .a-play{display:none}
+.ting-root[data-auto="1"] .auto .a-pause{display:inline}
+.ting-root[data-auto="1"] .chip.auto{border-color:var(--acc);color:var(--acc)}
+.ting-root .hero .act{margin-top:34px;display:flex;justify-content:center}
+.ting-root .hero .cue{margin-top:28px}
+@media (max-width:760px){.ting-root .chip.auto span{display:none}.ting-root .chip.auto{padding:10px 12px}}
